@@ -18,6 +18,11 @@ export const env = {
     redirectUri: process.env.SHOPIFY_REDIRECT_URI ?? "",
     scopes: process.env.SHOPIFY_SCOPES ?? "read_orders,read_customers",
   },
+  tiktok: {
+    clientId: process.env.TIKTOK_CLIENT_ID ?? "",
+    clientSecret: process.env.TIKTOK_CLIENT_SECRET ?? "",
+    redirectUri: process.env.TIKTOK_REDIRECT_URI ?? "",
+  },
 };
 
 /** True once real Meta App credentials have been configured. */
@@ -25,3 +30,6 @@ export const isMetaConfigured = () => Boolean(env.meta.appId && env.meta.appSecr
 
 /** True once a real Shopify Partner app (Client ID/Secret) has been configured. */
 export const isShopifyConfigured = () => Boolean(env.shopify.clientId && env.shopify.clientSecret);
+
+/** True once a real TikTok for Business developer app (Client ID/Secret) has been configured. */
+export const isTikTokConfigured = () => Boolean(env.tiktok.clientId && env.tiktok.clientSecret);

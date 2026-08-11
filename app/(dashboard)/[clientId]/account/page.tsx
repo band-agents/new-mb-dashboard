@@ -1,12 +1,13 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
-import { isMetaConfigured, isShopifyConfigured } from "@/lib/env";
+import { isMetaConfigured, isShopifyConfigured, isTikTokConfigured } from "@/lib/env";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "./connection-card";
 import { ShopifyConnectionCard } from "./shopify-connection-card";
+import { TikTokConnectionCard } from "./tiktok-connection-card";
 import { updateClientAction } from "./actions";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
@@ -16,7 +17,15 @@ export default async function AccountPage({
   searchParams,
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ error?: string; connected?: string; shopifyError?: string; shopifyConnected?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    connected?: string;
+    shopifyError?: string;
+    shopifyConnected?: string;
+    tiktokError?: string;
+    tiktokConnected?: string;
+    tiktokSelectAdvertiser?: string;
+  }>;
 }) {
   const { clientId } = await params;
   const { client, session } = await requireClientInScope(clientId);
@@ -25,6 +34,10 @@ export default async function AccountPage({
 
   const adAccounts = await prisma.adAccount.findMany({ where: { clientId } });
   const shopifyConnection = await prisma.shopifyConnection.findUnique({ where: { clientId } });
+  const tiktokConnection = await prisma.tikTokConnection.findUnique({ where: { clientId } });
+  const pendingAdvertisers: { advertiser_id: string; advertiser_name: string }[] = tiktokConnection?.pendingAdvertisersJson
+    ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
+    : [];
 
   return (
     <div className="max-w-3xl">
@@ -48,6 +61,18 @@ export default async function AccountPage({
           lastSyncedAt={shopifyConnection?.lastSyncedAt?.toISOString() ?? null}
           lastError={shopifyConnection?.lastError ?? null}
           error={sp.shopifyError}
+        />
+
+        <TikTokConnectionCard
+          clientId={clientId}
+          status={tiktokConnection?.status ?? "NOT_CONNECTED"}
+          isTikTokConfigured={isTikTokConfigured()}
+          advertiserName={tiktokConnection?.advertiserName ?? null}
+          advertiserCurrency={tiktokConnection?.advertiserCurrency ?? null}
+          pendingAdvertisers={pendingAdvertisers}
+          lastSyncedAt={tiktokConnection?.lastSyncedAt?.toISOString() ?? null}
+          lastError={tiktokConnection?.lastError ?? null}
+          error={sp.tiktokError}
         />
 
         <Card className="p-4">

@@ -7,6 +7,8 @@ import { MetaApiError } from "@/lib/meta/client";
 import { syncClientFromMeta } from "@/lib/meta/sync";
 import { ShopifyApiError } from "@/lib/shopify/client";
 import { syncClientFromShopify } from "@/lib/shopify/sync";
+import { TikTokApiError } from "@/lib/tiktok/client";
+import { syncClientFromTikTok } from "@/lib/tiktok/sync";
 import { decryptSecret } from "@/lib/security/crypto";
 
 export type ConnectMetaResult = { ok: true; adAccountName: string; campaignCount: number } | { ok: false; error: string };
@@ -103,6 +105,51 @@ export async function disconnectShopifyAction(clientId: string) {
   await prisma.shopifyConnection.upsert({
     where: { clientId: client.id },
     update: { status: "NOT_CONNECTED", accessTokenEnc: null, lastError: null },
+    create: { clientId: client.id, status: "NOT_CONNECTED" },
+  });
+  revalidatePath(`/${clientId}/account`);
+}
+
+export type ConnectTikTokResult = { ok: true; advertiserName: string; campaignCount: number } | { ok: false; error: string };
+
+/** Finalizes connection once the user has picked which advertiser account to use (called right after OAuth if only one was granted, or from the picker if several were). */
+export async function selectTikTokAdvertiserAction(clientId: string, advertiserId: string): Promise<ConnectTikTokResult> {
+  const { client } = await requireClientInScope(clientId);
+  const connection = await prisma.tikTokConnection.findUnique({ where: { clientId: client.id } });
+  const token = decryptSecret(connection?.accessTokenEnc);
+  if (!token) return { ok: false, error: "No pending TikTok authorization found. Reconnect from the start." };
+
+  try {
+    const result = await syncClientFromTikTok(client.id, token, advertiserId);
+    revalidatePath(`/${clientId}`, "layout");
+    return { ok: true, advertiserName: result.advertiserName, campaignCount: result.campaignCount };
+  } catch (err) {
+    const message =
+      err instanceof TikTokApiError ? err.message : err instanceof Error ? err.message : "Something went wrong talking to TikTok.";
+    await prisma.tikTokConnection.upsert({
+      where: { clientId: client.id },
+      update: { status: "ERROR", lastError: message },
+      create: { clientId: client.id, status: "ERROR", lastError: message },
+    });
+    revalidatePath(`/${clientId}/account`);
+    return { ok: false, error: message };
+  }
+}
+
+/** Re-syncs using the already-stored (encrypted) token + previously selected advertiser — for the "Refresh now" button. */
+export async function resyncTikTokAction(clientId: string): Promise<ConnectTikTokResult> {
+  const { client } = await requireClientInScope(clientId);
+  const connection = await prisma.tikTokConnection.findUnique({ where: { clientId: client.id } });
+  const token = decryptSecret(connection?.accessTokenEnc);
+  if (!token || !connection?.advertiserId) return { ok: false, error: "No stored connection to refresh. Reconnect with TikTok again." };
+  return selectTikTokAdvertiserAction(clientId, connection.advertiserId);
+}
+
+export async function disconnectTikTokAction(clientId: string) {
+  const { client } = await requireClientInScope(clientId);
+  await prisma.tikTokConnection.upsert({
+    where: { clientId: client.id },
+    update: { status: "NOT_CONNECTED", accessTokenEnc: null, pendingAdvertisersJson: null, advertiserId: null, lastError: null },
     create: { clientId: client.id, status: "NOT_CONNECTED" },
   });
   revalidatePath(`/${clientId}/account`);

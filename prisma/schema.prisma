@@ -95,12 +95,16 @@ model TikTokConnection {
   clientId String @unique
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  status            String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONNECTED | ERROR
+  status            String    @default("NOT_CONNECTED") // NOT_CONNECTED | PENDING_SELECTION | CONNECTED | ERROR
   accessTokenEnc    String? // AES-256-GCM ciphertext, never sent to the client
   advertiserId      String? // the selected advertiser account (a token can grant access to several)
   advertiserName    String?
   advertiserCurrency String?
   scopes            String? // comma-separated granted scopes
+  // When OAuth grants access to >1 advertiser account: JSON array of
+  // {advertiser_id, advertiser_name} awaiting the user's pick (status =
+  // PENDING_SELECTION) while accessTokenEnc already holds the real token.
+  pendingAdvertisersJson String?
   lastSyncedAt      DateTime?
   lastError         String?
   createdAt         DateTime  @default(now())
