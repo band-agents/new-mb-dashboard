@@ -1,5 +1,9 @@
-// Meta Business Analytics Dashboard — multi-tenant data model.
+// Multi-platform Business Analytics Dashboard — multi-tenant data model.
 // Postgres (Neon, provisioned via Vercel Storage) in both local dev and production.
+// AdAccount.adPlatform (META | TIKTOK) is the platform discriminator; Campaign/
+// AdSet/Ad/InsightSnapshot are platform-agnostic and shared by every adapter
+// under lib/<platform>/ — see lib/data/*.service.ts for the platform-filtered
+// query layer every page actually reads from.
 
 generator client {
   provider = "prisma-client-js"
@@ -56,6 +60,7 @@ model Client {
   createdAt DateTime @default(now())
 
   metaConnection    MetaConnection?
+  tiktokConnection  TikTokConnection?
   adAccounts        AdAccount[]
   reportConfigs     ReportConfig[]
   alerts            Alert[]
@@ -83,12 +88,38 @@ model MetaConnection {
   updatedAt          DateTime  @updatedAt
 }
 
+// ---------- TikTok connection (server-side only; tokens encrypted at rest) ----------
+
+model TikTokConnection {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status            String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONNECTED | ERROR
+  accessTokenEnc    String? // AES-256-GCM ciphertext, never sent to the client
+  advertiserId      String? // the selected advertiser account (a token can grant access to several)
+  advertiserName    String?
+  advertiserCurrency String?
+  scopes            String? // comma-separated granted scopes
+  lastSyncedAt      DateTime?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
 model AdAccount {
   id            String @id @default(cuid())
   clientId      String
   client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  metaAccountId String // act_XXXXXXXX in live mode; synthetic id in demo mode
+  // Which advertising platform this account belongs to — every Campaign/AdSet/Ad/
+  // InsightSnapshot under it inherits the platform through this relation, so
+  // lib/data/*.service.ts filters by platform without a denormalized column on
+  // every child table. Not a Prisma enum, to match this schema's existing
+  // string-with-documented-values convention (see Campaign.status etc).
+  adPlatform    String @default("META") // META | TIKTOK
+
+  externalAccountId String // act_XXXXXXXX (Meta) / advertiser_id (TikTok) in live mode; synthetic id in demo mode
   name          String
   currency      String @default("USD")
   status        String @default("ACTIVE")
@@ -98,6 +129,7 @@ model AdAccount {
   insights  InsightSnapshot[]
 
   @@index([clientId])
+  @@index([clientId, adPlatform])
 }
 
 model Campaign {
@@ -105,7 +137,7 @@ model Campaign {
   adAccountId    String
   adAccount      AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
 
-  metaCampaignId String
+  externalCampaignId String // platform's own campaign id (Meta campaign id / TikTok campaign_id)
   name           String
   status         String // ACTIVE | PAUSED | ARCHIVED | COMPLETED
   objective      String // AWARENESS | TRAFFIC | ENGAGEMENT | LEADS | APP_PROMOTION | SALES
@@ -125,7 +157,7 @@ model AdSet {
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  metaAdSetId       String
+  externalAdSetId   String // Meta ad set id / TikTok adgroup_id
   name              String
   status            String
   dailyBudget       Float?
@@ -143,7 +175,7 @@ model Ad {
   adSetId  String
   adSet    AdSet  @relation(fields: [adSetId], references: [id], onDelete: Cascade)
 
-  metaAdId String
+  externalAdId String // Meta ad id / TikTok ad_id
   name     String
   status   String
 
@@ -207,6 +239,15 @@ model InsightSnapshot {
   viewContent     Int   @default(0)
   registrations   Int   @default(0)
   engagement      Int   @default(0)
+
+  // Platform-specific extras that don't fit the normalized metric set above —
+  // left genuinely nullable (not defaulted to 0) so "not applicable to this
+  // platform" is never confused with "reported zero". Currently TikTok-only.
+  videoViews Int?
+  likes      Int?
+  comments   Int?
+  shares     Int?
+  follows    Int?
 
   source String @default("DEMO") // LIVE | DEMO
 

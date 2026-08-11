@@ -176,12 +176,14 @@ async function writeToDatabase(clientId: string, accessToken: string, fetched: F
   await prisma.$transaction(
     async (tx) => {
       // Only now — after every Meta call above has already succeeded — do we touch existing data.
-      await tx.adAccount.deleteMany({ where: { clientId } });
+      // Scoped to adPlatform: "META" so a Meta re-sync never touches this client's TikTok data.
+      await tx.adAccount.deleteMany({ where: { clientId, adPlatform: "META" } });
 
       const adAccount = await tx.adAccount.create({
         data: {
           clientId,
-          metaAccountId: account.id,
+          adPlatform: "META",
+          externalAccountId: account.id,
           name: account.name,
           currency: account.currency,
           status: account.account_status === 1 ? "ACTIVE" : "PAUSED",
@@ -198,7 +200,7 @@ async function writeToDatabase(clientId: string, accessToken: string, fetched: F
         const campaign = await tx.campaign.create({
           data: {
             adAccountId: adAccount.id,
-            metaCampaignId: fc.meta.id,
+            externalCampaignId: fc.meta.id,
             name: fc.meta.name,
             status: mapCampaignStatus(fc.meta.status),
             objective: mapObjective(fc.meta.objective ?? "TRAFFIC"),
@@ -219,7 +221,7 @@ async function writeToDatabase(clientId: string, accessToken: string, fetched: F
           const adSet = await tx.adSet.create({
             data: {
               campaignId: campaign.id,
-              metaAdSetId: fas.meta.id,
+              externalAdSetId: fas.meta.id,
               name: fas.meta.name,
               status: mapCampaignStatus(fas.meta.status),
               dailyBudget: fas.meta.daily_budget ? Number(fas.meta.daily_budget) / 100 : null,
@@ -235,7 +237,7 @@ async function writeToDatabase(clientId: string, accessToken: string, fetched: F
 
           for (const fad of fas.ads) {
             const ad = await tx.ad.create({
-              data: { adSetId: adSet.id, metaAdId: fad.meta.id, name: fad.meta.name, status: mapCampaignStatus(fad.meta.status) },
+              data: { adSetId: adSet.id, externalAdId: fad.meta.id, name: fad.meta.name, status: mapCampaignStatus(fad.meta.status) },
             });
             adCount++;
 

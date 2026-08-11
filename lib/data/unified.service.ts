@@ -16,10 +16,10 @@ export async function getUnifiedOverview(params: UnifiedParams) {
   const [metaConnection, shopifyConnection, adAccount] = await Promise.all([
     prisma.metaConnection.findUnique({ where: { clientId: params.clientId } }),
     prisma.shopifyConnection.findUnique({ where: { clientId: params.clientId } }),
-    prisma.adAccount.findFirst({ where: { clientId: params.clientId } }),
+    prisma.adAccount.findFirst({ where: { clientId: params.clientId, adPlatform: "META" } }),
   ]);
 
-  const metaRows = await getInsightRows({ clientId: params.clientId, start: params.start, end: params.end, level: "CAMPAIGN" });
+  const metaRows = await getInsightRows({ clientId: params.clientId, start: params.start, end: params.end, level: "CAMPAIGN", platform: "META" });
   const meta = aggregate(metaRows);
   const metaAvailable: SourceAvailability = !metaConnection && metaRows.length === 0
     ? "not_connected"
@@ -87,7 +87,7 @@ export type ReconciliationStatus = "verified" | "difference_detected" | "data_un
 
 export async function getReconciliation(params: UnifiedParams) {
   const [metaRows, shopifyRows] = await Promise.all([
-    getInsightRows({ clientId: params.clientId, start: params.start, end: params.end, level: "CAMPAIGN" }),
+    getInsightRows({ clientId: params.clientId, start: params.start, end: params.end, level: "CAMPAIGN", platform: "META" }),
     prisma.shopifyOrderSnapshot.findMany({ where: { clientId: params.clientId, date: { gte: params.start, lte: params.end } } }),
   ]);
 

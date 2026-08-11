@@ -2,6 +2,7 @@ import { getInsightRows, groupByDate } from "./insights";
 import { aggregate, deriveMetrics, sumRows } from "./metrics";
 import { comparisonRange, type ComparePreset } from "./dateRange";
 import { prisma } from "@/lib/prisma";
+import type { AdPlatform } from "@/lib/platforms/types";
 
 export type OverviewParams = {
   clientId: string;
@@ -10,10 +11,15 @@ export type OverviewParams = {
   compare: ComparePreset;
   campaignStatus?: string[];
   objective?: string[];
+  platform?: AdPlatform;
 };
 
 export async function getOverviewData(params: OverviewParams) {
-  const connection = await prisma.metaConnection.findUnique({ where: { clientId: params.clientId } });
+  const platform = params.platform ?? "META";
+  const connection =
+    platform === "TIKTOK"
+      ? await prisma.tikTokConnection.findUnique({ where: { clientId: params.clientId } })
+      : await prisma.metaConnection.findUnique({ where: { clientId: params.clientId } });
   const isLive = connection?.status === "CONNECTED";
 
   const currentRows = await getInsightRows({
@@ -23,6 +29,7 @@ export async function getOverviewData(params: OverviewParams) {
     level: "CAMPAIGN",
     campaignStatus: params.campaignStatus,
     objective: params.objective,
+    platform,
   });
 
   const current = aggregate(currentRows);
@@ -37,6 +44,7 @@ export async function getOverviewData(params: OverviewParams) {
       level: "CAMPAIGN",
       campaignStatus: params.campaignStatus,
       objective: params.objective,
+      platform,
     });
     previous = aggregate(prevRows);
   }

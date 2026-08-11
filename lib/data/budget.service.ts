@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { getInsightRows, groupByDate } from "./insights";
 import { aggregate, deriveMetrics, sumRows } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
 function daysBetween(start: Date, end: Date) {
   return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
 }
 
-export async function getBudgetOverview(params: { clientId: string; start: Date; end: Date }) {
+export async function getBudgetOverview(params: { clientId: string; start: Date; end: Date; platform?: AdPlatform }) {
+  const platform = params.platform ?? "META";
   const campaigns = await prisma.campaign.findMany({
-    where: { adAccount: { clientId: params.clientId }, status: "ACTIVE" },
+    where: { adAccount: { clientId: params.clientId, adPlatform: platform }, status: "ACTIVE" },
     select: { id: true, name: true, dailyBudget: true },
   });
 
@@ -21,6 +23,7 @@ export async function getBudgetOverview(params: { clientId: string; start: Date;
     start: params.start,
     end: params.end,
     level: "CAMPAIGN",
+    platform,
   });
   const totals = aggregate(rows);
 

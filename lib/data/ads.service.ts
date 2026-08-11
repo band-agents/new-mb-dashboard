@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { deriveMetrics, type RawTotals } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
-export async function getAdsTable(params: { clientId: string; start: Date; end: Date; adSetId?: string }) {
+export async function getAdsTable(params: { clientId: string; start: Date; end: Date; adSetId?: string; platform?: AdPlatform }) {
   const ads = await prisma.ad.findMany({
     where: {
       adSet: {
-        campaign: { adAccount: { clientId: params.clientId } },
+        campaign: { adAccount: { clientId: params.clientId, adPlatform: params.platform ?? "META" } },
         ...(params.adSetId ? { id: params.adSetId } : {}),
       },
     },

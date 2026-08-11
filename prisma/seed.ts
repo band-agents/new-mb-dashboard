@@ -86,7 +86,8 @@ async function main() {
     const adAccount = await prisma.adAccount.create({
       data: {
         clientId: client.id,
-        metaAccountId: `demo_act_${client.id.slice(-8)}`,
+        adPlatform: "META",
+        externalAccountId: `demo_act_${client.id.slice(-8)}`,
         name: `${clientDef.name} — Primary Ad Account`,
         currency: "USD",
         status: "ACTIVE",
@@ -108,7 +109,7 @@ async function main() {
       const campaign = await prisma.campaign.create({
         data: {
           adAccountId: adAccount.id,
-          metaCampaignId: `demo_camp_${client.id.slice(-6)}_${ci}`,
+          externalCampaignId: `demo_camp_${client.id.slice(-6)}_${ci}`,
           name,
           status,
           objective: profile.objective,
@@ -202,7 +203,7 @@ async function main() {
         const adSet = await prisma.adSet.create({
           data: {
             campaignId: campaign.id,
-            metaAdSetId: `demo_adset_${campaign.id.slice(-6)}_${asi}`,
+            externalAdSetId: `demo_adset_${campaign.id.slice(-6)}_${asi}`,
             name: `${name} — Ad Set ${asi + 1}`,
             status,
             dailyBudget: Math.round((dailyBudget * adSetShare) * 10) / 10,
@@ -244,7 +245,7 @@ async function main() {
           const ad = await prisma.ad.create({
             data: {
               adSetId: adSet.id,
-              metaAdId: `demo_ad_${adSet.id.slice(-6)}_${adi}`,
+              externalAdId: `demo_ad_${adSet.id.slice(-6)}_${adi}`,
               name: `${name} — Creative ${String.fromCharCode(65 + adi)}`,
               status,
             },

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { deriveMetrics, type RawTotals } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
 export type CampaignRow = ReturnType<typeof deriveMetrics> & {
   id: string;
@@ -16,10 +17,11 @@ export async function getCampaignsTable(params: {
   end: Date;
   status?: string[];
   objective?: string[];
+  platform?: AdPlatform;
 }): Promise<CampaignRow[]> {
   const campaigns = await prisma.campaign.findMany({
     where: {
-      adAccount: { clientId: params.clientId },
+      adAccount: { clientId: params.clientId, adPlatform: params.platform ?? "META" },
       ...(params.status?.length ? { status: { in: params.status } } : {}),
       ...(params.objective?.length ? { objective: { in: params.objective } } : {}),
     },

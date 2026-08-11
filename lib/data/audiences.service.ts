@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { deriveMetrics, type RawTotals } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
 export type BreakdownDimension = "placement" | "device" | "ageRange" | "gender" | "region";
 
@@ -8,12 +9,13 @@ export async function getBreakdown(params: {
   start: Date;
   end: Date;
   dimension: BreakdownDimension;
+  platform?: AdPlatform;
 }) {
   const rows = await prisma.insightSnapshot.groupBy({
     by: [params.dimension],
     where: {
       level: "ACCOUNT",
-      adAccount: { clientId: params.clientId },
+      adAccount: { clientId: params.clientId, adPlatform: params.platform ?? "META" },
       date: { gte: params.start, lte: params.end },
       [params.dimension]: { not: null },
     },

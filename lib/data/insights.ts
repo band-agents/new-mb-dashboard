@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import type { AdPlatform } from "@/lib/platforms/types";
 
 export type InsightLevel = "ACCOUNT" | "CAMPAIGN" | "ADSET" | "AD";
 
@@ -13,12 +14,19 @@ export type InsightFilter = {
   adId?: string;
   campaignStatus?: string[];
   objective?: string[];
+  /** Which advertising platform's rows to read. Defaults to "META" so every
+   * existing caller keeps its exact pre-TikTok behavior until it's
+   * explicitly updated to pass the platform switcher's selection. Pass
+   * `undefined` explicitly (not just omitting the key) for an "all
+   * platforms" combined query. */
+  platform?: AdPlatform | "ALL";
 };
 
-/** Fetches raw InsightSnapshot rows scoped to a client's ad account(s), date range, and level. */
+/** Fetches raw InsightSnapshot rows scoped to a client's ad account(s), date range, level, and platform. */
 export async function getInsightRows(filter: InsightFilter) {
+  const platform = filter.platform ?? "META";
   const where: Prisma.InsightSnapshotWhereInput = {
-    adAccount: { clientId: filter.clientId },
+    adAccount: { clientId: filter.clientId, ...(platform === "ALL" ? {} : { adPlatform: platform }) },
     date: { gte: filter.start, lte: filter.end },
   };
   if (filter.level) where.level = filter.level;

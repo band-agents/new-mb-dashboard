@@ -18,7 +18,8 @@ export async function createClientAction(formData: FormData) {
   await prisma.adAccount.create({
     data: {
       clientId: client.id,
-      metaAccountId: `demo_act_${client.id.slice(-8)}`,
+      adPlatform: "META",
+      externalAccountId: `demo_act_${client.id.slice(-8)}`,
       name: `${name} — Primary Ad Account`,
     },
   });

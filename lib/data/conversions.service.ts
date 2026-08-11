@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { getInsightRows, groupByDate } from "./insights";
 import { aggregate, deriveMetrics, sumRows } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
-export async function getConversionsOverview(params: { clientId: string; start: Date; end: Date }) {
+export async function getConversionsOverview(params: { clientId: string; start: Date; end: Date; platform?: AdPlatform }) {
   const rows = await getInsightRows({
     clientId: params.clientId,
     start: params.start,
     end: params.end,
     level: "CAMPAIGN",
+    platform: params.platform,
   });
   const totals = aggregate(rows);
 
@@ -31,9 +33,9 @@ export async function getConversionsOverview(params: { clientId: string; start: 
   return { totals, funnel, series };
 }
 
-export async function getConversionsByCampaign(params: { clientId: string; start: Date; end: Date }) {
+export async function getConversionsByCampaign(params: { clientId: string; start: Date; end: Date; platform?: AdPlatform }) {
   const campaigns = await prisma.campaign.findMany({
-    where: { adAccount: { clientId: params.clientId } },
+    where: { adAccount: { clientId: params.clientId, adPlatform: params.platform ?? "META" } },
     select: { id: true, name: true, objective: true },
   });
   const results = await Promise.all(

@@ -59,8 +59,11 @@ export default async function AccountPage({
               {adAccounts.map((a) => (
                 <li key={a.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
                   <div>
-                    <p className="font-medium">{a.name}</p>
-                    <p className="text-xs text-muted-foreground">{a.metaAccountId} · {a.currency}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium">{a.name}</p>
+                      <Badge variant="outline">{a.adPlatform === "TIKTOK" ? "TikTok" : "Meta"}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{a.externalAccountId} · {a.currency}</p>
                   </div>
                   <Badge variant={a.status === "ACTIVE" ? "positive" : "neutral"}>{a.status}</Badge>
                 </li>

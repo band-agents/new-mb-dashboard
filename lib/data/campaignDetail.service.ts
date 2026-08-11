@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { getInsightRows, groupByDate } from "./insights";
 import { aggregate, deriveMetrics, sumRows } from "./metrics";
+import type { AdPlatform } from "@/lib/platforms/types";
 
-export async function getCampaignDetail(params: { clientId: string; campaignId: string; start: Date; end: Date }) {
+export async function getCampaignDetail(params: { clientId: string; campaignId: string; start: Date; end: Date; platform?: AdPlatform }) {
+  const platform = params.platform ?? "META";
   const campaign = await prisma.campaign.findFirst({
-    where: { id: params.campaignId, adAccount: { clientId: params.clientId } },
+    where: { id: params.campaignId, adAccount: { clientId: params.clientId, adPlatform: platform } },
     include: { adAccount: true },
   });
   if (!campaign) return null;
