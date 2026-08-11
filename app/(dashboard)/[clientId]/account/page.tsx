@@ -1,6 +1,6 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
-import { isMetaConfigured } from "@/lib/env";
+import { isMetaConfigured, isShopifyConfigured } from "@/lib/env";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export default async function AccountPage({
   searchParams,
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ error?: string; connected?: string }>;
+  searchParams: Promise<{ error?: string; connected?: string; shopifyError?: string; shopifyConnected?: string }>;
 }) {
   const { clientId } = await params;
   const { client, session } = await requireClientInScope(clientId);
@@ -44,8 +44,10 @@ export default async function AccountPage({
         <ShopifyConnectionCard
           clientId={clientId}
           status={shopifyConnection?.status ?? "NOT_CONNECTED"}
+          isShopifyConfigured={isShopifyConfigured()}
           lastSyncedAt={shopifyConnection?.lastSyncedAt?.toISOString() ?? null}
           lastError={shopifyConnection?.lastError ?? null}
+          error={sp.shopifyError}
         />
 
         <Card className="p-4">

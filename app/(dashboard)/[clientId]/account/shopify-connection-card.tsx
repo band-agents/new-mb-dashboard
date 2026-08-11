@@ -9,16 +9,27 @@ import { Input, Label } from "@/components/ui/input";
 import { connectShopifyWithTokenAction, disconnectShopifyAction, resyncShopifyAction } from "./actions";
 import { useLocale } from "@/components/i18n/locale-provider";
 
+const ERROR_KEY: Record<string, string> = {
+  oauth_failed: "account.shopifyOauthFailed",
+  invalid_domain: "account.shopifyInvalidDomain",
+  not_configured: "account.shopifyNotConfigured",
+  sync_failed: "account.shopifySyncFailed",
+};
+
 export function ShopifyConnectionCard({
   clientId,
   status,
+  isShopifyConfigured,
   lastSyncedAt,
   lastError,
+  error,
 }: {
   clientId: string;
   status: string;
+  isShopifyConfigured: boolean;
   lastSyncedAt: string | null;
   lastError: string | null;
+  error?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [domain, setDomain] = useState("");
@@ -52,6 +63,10 @@ export function ShopifyConnectionCard({
     });
   }
 
+  const oauthHref = domain.trim()
+    ? `/api/shopify/oauth/start?clientId=${clientId}&shop=${encodeURIComponent(domain.trim())}`
+    : undefined;
+
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
@@ -77,7 +92,10 @@ export function ShopifyConnectionCard({
         )}
       </div>
 
-      {lastError && !result && (
+      {error && ERROR_KEY[error] && (
+        <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">{t(ERROR_KEY[error])}</p>
+      )}
+      {lastError && !error && !result && (
         <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">{lastError}</p>
       )}
       {result && (
@@ -97,11 +115,6 @@ export function ShopifyConnectionCard({
         </div>
       ) : (
         <div className="mt-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {t("account.shopifyHelpPrefix")}{" "}
-            <code className="rounded bg-muted px-1 py-0.5">{t("account.shopifyHelpScopes")}</code>{" "}
-            {t("account.shopifyHelpSuffix")}
-          </p>
           <div className="space-y-1.5">
             <Label htmlFor="shop-domain">{t("account.shopifyDomainLabel")}</Label>
             <Input
@@ -113,9 +126,15 @@ export function ShopifyConnectionCard({
               className="text-xs"
             />
           </div>
-          <div className="space-y-1.5">
+
+          <div>
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              {t("account.shopifyHelpPrefix")}{" "}
+              <code className="rounded bg-muted px-1 py-0.5">{t("account.shopifyHelpScopes")}</code>{" "}
+              {t("account.shopifyHelpSuffix")}
+            </p>
             <Label htmlFor="shop-token">{t("account.shopifyTokenLabel")}</Label>
-            <div className="flex gap-2">
+            <div className="mt-1.5 flex gap-2">
               <Input
                 id="shop-token"
                 type="password"
@@ -129,6 +148,23 @@ export function ShopifyConnectionCard({
                 {pending ? t("common.connecting") : t("common.connect")}
               </Button>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> {t("account.shopifyOr")} <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <div>
+            <Button size="sm" variant="outline" asChild disabled={!isShopifyConfigured || !oauthHref}>
+              <a href={oauthHref ?? "#"} aria-disabled={!isShopifyConfigured || !oauthHref}>
+                {t("account.shopifyConnectOauth")}
+              </a>
+            </Button>
+            {!isShopifyConfigured ? (
+              <p className="mt-2 text-xs text-muted-foreground">{t("account.shopifyOauthRequires")}</p>
+            ) : !domain.trim() ? (
+              <p className="mt-2 text-xs text-muted-foreground">{t("account.shopifyInvalidDomain")}</p>
+            ) : null}
           </div>
         </div>
       )}

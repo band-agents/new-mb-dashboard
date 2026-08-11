@@ -338,6 +338,13 @@ const en = {
     shopifyHelpSuffix: "access, install it, and paste the generated Admin API access token below.",
     shopifyConnectedToStore: 'Connected to "{{store}}" — pulled {{count}} orders.',
     shopifyRefreshedCount: "Refreshed — {{count}} orders synced.",
+    shopifyOr: "or",
+    shopifyConnectOauth: "Connect with Shopify (OAuth)",
+    shopifyOauthRequires: "Requires a Shopify Partner app (SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET) set on the server. The token paste above works without one.",
+    shopifyOauthFailed: "The Shopify authorization was cancelled or failed. Please try connecting again.",
+    shopifyInvalidDomain: "Enter your shop domain above first (e.g. your-store.myshopify.com), then click Connect with Shopify.",
+    shopifyNotConfigured: "Shopify OAuth isn't configured on the server yet.",
+    shopifySyncFailed: "Connected, but the initial data sync failed. Try Refresh now once the issue is resolved.",
   },
   errors: {
     generic: "Something went wrong. Please try again.",

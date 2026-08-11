@@ -339,6 +339,13 @@ const ar: Dictionary = {
     shopifyHelpSuffix: "ثم ثبّته والصق رمز وصول Admin API الناتج أدناه.",
     shopifyConnectedToStore: 'تم الربط بمتجر "{{store}}" — تم سحب {{count}} طلب.',
     shopifyRefreshedCount: "تم التحديث — تمت مزامنة {{count}} طلب.",
+    shopifyOr: "أو",
+    shopifyConnectOauth: "الربط عبر Shopify (OAuth)",
+    shopifyOauthRequires: "يتطلب تطبيق Shopify Partner (SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET) مُعدًّا على الخادم. لصق الرمز أعلاه يعمل بدون ذلك.",
+    shopifyOauthFailed: "تم إلغاء تفويض Shopify أو فشل. يرجى المحاولة مرة أخرى.",
+    shopifyInvalidDomain: "أدخل نطاق متجرك أعلاه أولاً (مثل your-store.myshopify.com)، ثم اضغط الربط عبر Shopify.",
+    shopifyNotConfigured: "لم يتم إعداد OAuth الخاص بـ Shopify على الخادم بعد.",
+    shopifySyncFailed: "تم الربط، لكن فشلت المزامنة الأولية للبيانات. جرّب تحديث الآن بعد حل المشكلة.",
   },
   errors: {
     generic: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
