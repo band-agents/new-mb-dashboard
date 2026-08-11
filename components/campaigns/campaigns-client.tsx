@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import type { CampaignRow } from "@/lib/data/campaigns.service";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/components/currency/currency-provider";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
   ACTIVE: "positive",
@@ -17,45 +19,49 @@ const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
 
 export function CampaignsClient({ clientId, rows }: { clientId: string; rows: CampaignRow[] }) {
   const router = useRouter();
+  const currency = useCurrency();
+  const { intlTag: locale, t } = useLocale();
+  const money = (v: number) => formatCurrency(v, currency, locale);
+  const num = (v: number) => formatNumber(v, locale);
 
   const columns: ColumnDef<CampaignRow>[] = [
     selectionColumn<CampaignRow>(),
     {
       accessorKey: "name",
-      header: "Campaign",
+      header: t("campaigns.name"),
       cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name}</span>,
     },
     {
       accessorKey: "status",
-      header: "Status",
+      header: t("common.status"),
       cell: ({ row }) => <Badge variant={STATUS_VARIANT[row.original.status] ?? "neutral"}>{row.original.status}</Badge>,
     },
-    { accessorKey: "objective", header: "Objective" },
+    { accessorKey: "objective", header: t("campaigns.objective") },
     {
       accessorKey: "dailyBudget",
-      header: "Budget/day",
-      cell: ({ row }) => (row.original.dailyBudget ? formatCurrency(row.original.dailyBudget) : "—"),
+      header: t("kpi.dailyBudget"),
+      cell: ({ row }) => (row.original.dailyBudget ? money(row.original.dailyBudget) : "—"),
     },
-    { accessorKey: "spend", header: "Spend", cell: ({ row }) => formatCurrency(row.original.spend) },
-    { accessorKey: "impressions", header: "Impressions", cell: ({ row }) => formatNumber(row.original.impressions) },
-    { accessorKey: "reach", header: "Reach", cell: ({ row }) => formatNumber(row.original.reach) },
-    { accessorKey: "frequency", header: "Frequency", cell: ({ row }) => row.original.frequency.toFixed(2) },
-    { accessorKey: "clicks", header: "Clicks", cell: ({ row }) => formatNumber(row.original.clicks) },
-    { accessorKey: "ctr", header: "CTR", cell: ({ row }) => formatPercent(row.original.ctr) },
-    { accessorKey: "cpc", header: "CPC", cell: ({ row }) => formatCurrency(row.original.cpc) },
-    { accessorKey: "cpm", header: "CPM", cell: ({ row }) => formatCurrency(row.original.cpm) },
-    { accessorKey: "leads", header: "Leads", cell: ({ row }) => formatNumber(row.original.leads) },
-    { accessorKey: "purchases", header: "Purchases", cell: ({ row }) => formatNumber(row.original.purchases) },
-    { accessorKey: "conversions", header: "Conversions", cell: ({ row }) => formatNumber(row.original.conversions) },
+    { accessorKey: "spend", header: t("kpi.spend"), cell: ({ row }) => money(row.original.spend) },
+    { accessorKey: "impressions", header: t("kpi.impressions"), cell: ({ row }) => num(row.original.impressions) },
+    { accessorKey: "reach", header: t("kpi.reach"), cell: ({ row }) => num(row.original.reach) },
+    { accessorKey: "frequency", header: t("kpi.frequency"), cell: ({ row }) => row.original.frequency.toFixed(2) },
+    { accessorKey: "clicks", header: t("kpi.clicks"), cell: ({ row }) => num(row.original.clicks) },
+    { accessorKey: "ctr", header: t("kpi.ctr"), cell: ({ row }) => formatPercent(row.original.ctr) },
+    { accessorKey: "cpc", header: t("kpi.cpc"), cell: ({ row }) => money(row.original.cpc) },
+    { accessorKey: "cpm", header: t("kpi.cpm"), cell: ({ row }) => money(row.original.cpm) },
+    { accessorKey: "leads", header: t("kpi.leads"), cell: ({ row }) => num(row.original.leads) },
+    { accessorKey: "purchases", header: t("kpi.purchases"), cell: ({ row }) => num(row.original.purchases) },
+    { accessorKey: "conversions", header: t("kpi.conversions"), cell: ({ row }) => num(row.original.conversions) },
     {
       accessorKey: "costPerConversion",
-      header: "Cost/Result",
-      cell: ({ row }) => (row.original.conversions > 0 ? formatCurrency(row.original.costPerConversion) : "—"),
+      header: t("kpi.costPerConversion"),
+      cell: ({ row }) => (row.original.conversions > 0 ? money(row.original.costPerConversion) : "—"),
     },
-    { accessorKey: "conversionValue", header: "Conv. Value", cell: ({ row }) => formatCurrency(row.original.conversionValue) },
+    { accessorKey: "conversionValue", header: t("kpi.conversionValue"), cell: ({ row }) => money(row.original.conversionValue) },
     {
       accessorKey: "roas",
-      header: "ROAS",
+      header: t("kpi.roas"),
       cell: ({ row }) => {
         const v = row.original.roas;
         const good = v >= 2;
@@ -99,8 +105,8 @@ export function CampaignsClient({ clientId, rows }: { clientId: string; rows: Ca
           )
         )
       }
-      emptyTitle="No campaigns match your filters"
-      emptyDescription="Try widening the date range or clearing filters."
+      emptyTitle={t("campaigns.noCampaigns")}
+      emptyDescription={t("empty.tryDifferentRange")}
     />
   );
 }

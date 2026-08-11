@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { requireClientInScope } from "@/lib/data/scope";
+import { getClientCurrency } from "@/lib/data/currency";
 import { resolvePreset, type DateRangePreset, type ComparePreset } from "@/lib/data/dateRange";
 import { getCampaignDetail } from "@/lib/data/campaignDetail.service";
 import { generateCampaignInsights } from "@/lib/insights/engine";
@@ -13,6 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
+import { intlTag } from "@/lib/i18n/config";
 
 const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
   ACTIVE: "positive",
@@ -34,6 +38,11 @@ export default async function CampaignDetailPage({
   const range = (sp.range as DateRangePreset) || "last_30_days";
   const compare = (sp.compare as ComparePreset) || "previous_period";
   const { start, end } = resolvePreset(range);
+  const locale = await getLocale();
+  const currency = await getClientCurrency(clientId);
+  const tag = intlTag(locale);
+  const money = (v: number) => formatCurrency(v, currency, tag);
+  const num = (v: number) => formatNumber(v, tag);
 
   const detail = await getCampaignDetail({ clientId, campaignId, start, end });
   if (!detail) notFound();
@@ -47,7 +56,7 @@ export default async function CampaignDetailPage({
         href={`/${clientId}/campaigns`}
         className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
-        <ChevronLeft className="h-3.5 w-3.5" /> Back to campaigns
+        <ChevronLeft className="h-3.5 w-3.5 rtl:rotate-180" /> {t(locale, "campaigns.title")}
       </Link>
 
       <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -56,24 +65,24 @@ export default async function CampaignDetailPage({
         <Badge variant="outline">{campaign.objective}</Badge>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Started {formatDate(campaign.startDate)}
-        {campaign.dailyBudget ? ` · ${formatCurrency(campaign.dailyBudget)}/day budget` : ""}
+        {formatDate(campaign.startDate, tag)}
+        {campaign.dailyBudget ? ` · ${money(campaign.dailyBudget)}/${t(locale, "performance.daily").toLowerCase()}` : ""}
       </p>
 
       <FilterBar showStatusFilter={false} />
 
       {totals.spend === 0 ? (
-        <EmptyState title="No data for this period" description="Try a wider date range." />
+        <EmptyState title={t(locale, "empty.noData")} description={t(locale, "empty.tryDifferentRange")} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
-              ["Spend", formatCurrency(totals.spend)],
-              ["Impressions", formatNumber(totals.impressions)],
-              ["Clicks", formatNumber(totals.clicks)],
-              ["CTR", formatPercent(totals.ctr)],
-              ["Conversions", formatNumber(totals.conversions)],
-              ["ROAS", `${totals.roas.toFixed(2)}x`],
+              [t(locale, "kpi.spend"), money(totals.spend)],
+              [t(locale, "kpi.impressions"), num(totals.impressions)],
+              [t(locale, "kpi.clicks"), num(totals.clicks)],
+              [t(locale, "kpi.ctr"), formatPercent(totals.ctr)],
+              [t(locale, "kpi.conversions"), num(totals.conversions)],
+              [t(locale, "kpi.roas"), `${totals.roas.toFixed(2)}x`],
             ].map(([label, value]) => (
               <Card key={label} className="p-3">
                 <p className="text-xs text-muted-foreground">{label}</p>
@@ -83,17 +92,17 @@ export default async function CampaignDetailPage({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <TrendChart title="Daily Spend" data={series} dataKey="spend" format="currency" color="var(--color-chart-1)" />
-            <TrendChart title="Daily Conversions" data={series} dataKey="conversions" format="number" color="var(--color-chart-3)" />
+            <TrendChart title={t(locale, "kpi.spend")} data={series} dataKey="spend" format="currency" color="var(--color-chart-1)" />
+            <TrendChart title={t(locale, "kpi.conversions")} data={series} dataKey="conversions" format="number" color="var(--color-chart-3)" />
           </div>
 
           <div className="mt-6">
             <div className="mb-2 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-brand" />
-              <h2 className="text-sm font-semibold">AI Performance Summary</h2>
+              <h2 className="text-sm font-semibold">{t(locale, "overview.aiInsights")}</h2>
             </div>
             {insights.length === 0 ? (
-              <EmptyState title="Nothing notable" description="No significant changes detected for this campaign in this period." />
+              <EmptyState title={t(locale, "overview.noNotableChanges")} description={t(locale, "overview.noNotableChangesDesc")} />
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {insights.map((i) => (
@@ -105,24 +114,24 @@ export default async function CampaignDetailPage({
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="p-4">
-              <h3 className="mb-3 text-sm font-semibold">Placement performance</h3>
+              <h3 className="mb-3 text-sm font-semibold">{t(locale, "audiences.placement")}</h3>
               {placementBreakdown.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No placement breakdown available for this period.</p>
+                <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
               ) : (
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="pb-2 font-medium">Placement</th>
-                      <th className="pb-2 font-medium">Spend</th>
-                      <th className="pb-2 font-medium">CTR</th>
-                      <th className="pb-2 font-medium">ROAS</th>
+                      <th className="pb-2 font-medium">{t(locale, "audiences.placement")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.spend")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.ctr")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.roas")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {placementBreakdown.map((p) => (
                       <tr key={p.placement} className="border-t border-border">
                         <td className="py-2">{p.placement}</td>
-                        <td className="py-2">{formatCurrency(p.spend)}</td>
+                        <td className="py-2">{money(p.spend)}</td>
                         <td className="py-2">{formatPercent(p.ctr)}</td>
                         <td className="py-2">{p.roas > 0 ? `${p.roas.toFixed(2)}x` : "—"}</td>
                       </tr>
@@ -133,17 +142,17 @@ export default async function CampaignDetailPage({
             </Card>
 
             <Card className="p-4">
-              <h3 className="mb-3 text-sm font-semibold">Ad sets in this campaign</h3>
+              <h3 className="mb-3 text-sm font-semibold">{t(locale, "nav.adSets")}</h3>
               {adSetBreakdown.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No ad sets found.</p>
+                <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
               ) : (
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="pb-2 font-medium">Ad set</th>
-                      <th className="pb-2 font-medium">Spend</th>
-                      <th className="pb-2 font-medium">Conversions</th>
-                      <th className="pb-2 font-medium">ROAS</th>
+                      <th className="pb-2 font-medium">{t(locale, "adSets.name")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.spend")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.conversions")}</th>
+                      <th className="pb-2 font-medium">{t(locale, "kpi.roas")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -154,8 +163,8 @@ export default async function CampaignDetailPage({
                             {a.name}
                           </Link>
                         </td>
-                        <td className="py-2">{formatCurrency(a.spend)}</td>
-                        <td className="py-2">{formatNumber(a.conversions)}</td>
+                        <td className="py-2">{money(a.spend)}</td>
+                        <td className="py-2">{num(a.conversions)}</td>
                         <td className="py-2">{a.roas > 0 ? `${a.roas.toFixed(2)}x` : "—"}</td>
                       </tr>
                     ))}
@@ -166,9 +175,9 @@ export default async function CampaignDetailPage({
           </div>
 
           <Card className="mt-4 p-4">
-            <h3 className="mb-3 text-sm font-semibold">Creative performance</h3>
+            <h3 className="mb-3 text-sm font-semibold">{t(locale, "nav.creatives")}</h3>
             {creativeBreakdown.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No ads found for this campaign.</p>
+              <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {creativeBreakdown.map((ad) => (
@@ -180,7 +189,7 @@ export default async function CampaignDetailPage({
                     <div className="p-2">
                       <p className="truncate text-xs font-medium">{ad.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatCurrency(ad.spend)} · {ad.roas > 0 ? `${ad.roas.toFixed(2)}x ROAS` : "no conv."}
+                        {money(ad.spend)} {ad.roas > 0 ? `· ${ad.roas.toFixed(2)}x` : ""}
                       </p>
                     </div>
                   </div>

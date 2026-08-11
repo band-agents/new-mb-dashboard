@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { TrendChart, type TrendFormat, type TrendPoint } from "@/components/charts/trend-chart";
-import { METRIC_DEFS, type MetricKey } from "@/lib/metricDefs";
+import { type MetricKey } from "@/lib/metricDefs";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 type SeriesPoint = {
   date: string;
@@ -85,6 +86,7 @@ const METRIC_OPTIONS: MetricKey[] = ["spend", "impressions", "reach", "clicks", 
 export function PerformanceClient({ series }: { series: SeriesPoint[] }) {
   const [metric, setMetric] = useState<MetricKey>("spend");
   const [granularity, setGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
+  const { t } = useLocale();
 
   const data = useMemo(() => reaggregate(series, granularity), [series, granularity]);
 
@@ -98,7 +100,7 @@ export function PerformanceClient({ series }: { series: SeriesPoint[] }) {
           <SelectContent>
             {METRIC_OPTIONS.map((m) => (
               <SelectItem key={m} value={m}>
-                {METRIC_DEFS[m].label}
+                {t(`metrics.${m}.label`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -108,16 +110,16 @@ export function PerformanceClient({ series }: { series: SeriesPoint[] }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="daily">Daily</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="daily">{t("performance.daily")}</SelectItem>
+            <SelectItem value="weekly">{t("performance.weekly")}</SelectItem>
+            <SelectItem value="monthly">{t("performance.monthly")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <TrendChart
-        title={`${METRIC_DEFS[metric].label} Trend`}
-        description={METRIC_DEFS[metric].tooltip}
+        title={`${t(`metrics.${metric}.label`)} ${t("performance.trend")}`}
+        description={t(`metrics.${metric}.tooltip`)}
         data={data as unknown as TrendPoint[]}
         dataKey={metric}
         format={METRIC_TO_FORMAT[metric]}
@@ -125,10 +127,10 @@ export function PerformanceClient({ series }: { series: SeriesPoint[] }) {
       />
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <TrendChart title="CTR Trend" data={data as any} dataKey="ctr" format="percent" color="var(--color-chart-2)" />
-        <TrendChart title="CPC Trend" data={data as any} dataKey="cpc" format="currency" color="var(--color-chart-3)" />
-        <TrendChart title="CPM Trend" data={data as any} dataKey="cpm" format="currency" color="var(--color-chart-5)" />
-        <TrendChart title="Reach & Impressions" data={data as any} dataKey="reach" format="compact" color="var(--color-chart-6)" />
+        <TrendChart title={`${t("metrics.ctr.label")} ${t("performance.trend")}`} data={data as any} dataKey="ctr" format="percent" color="var(--color-chart-2)" />
+        <TrendChart title={`${t("metrics.cpc.label")} ${t("performance.trend")}`} data={data as any} dataKey="cpc" format="currency" color="var(--color-chart-3)" />
+        <TrendChart title={`${t("metrics.cpm.label")} ${t("performance.trend")}`} data={data as any} dataKey="cpm" format="currency" color="var(--color-chart-5)" />
+        <TrendChart title={`${t("metrics.reach.label")} & ${t("metrics.impressions.label")}`} data={data as any} dataKey="reach" format="compact" color="var(--color-chart-6)" />
       </div>
     </div>
   );

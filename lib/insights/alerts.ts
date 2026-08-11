@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getInsightRows } from "@/lib/data/insights";
+import { getClientCurrency } from "@/lib/data/currency";
 import { aggregate } from "@/lib/data/metrics";
 import { pctChange, formatCurrency, formatPercent } from "@/lib/utils";
 
@@ -38,6 +39,8 @@ function windowsOf(end: Date, days: number) {
 
 export async function generateAlerts(clientId: string, asOf: Date = new Date()): Promise<GeneratedAlert[]> {
   const alerts: GeneratedAlert[] = [];
+  const currency = await getClientCurrency(clientId);
+  const money = (v: number) => formatCurrency(v, currency);
   const campaigns = await prisma.campaign.findMany({
     where: { adAccount: { clientId }, status: "ACTIVE" },
     select: { id: true, name: true },
@@ -64,7 +67,7 @@ export async function generateAlerts(clientId: string, asOf: Date = new Date()):
       if (cpcChange >= 40) {
         alerts.push(mk(c, "CPC_SPIKE", cpcChange >= 80 ? "CRITICAL" : "WARNING",
           `CPC increased ${cpcChange.toFixed(0)}% on "${c.name}"`,
-          `Cost per click rose from ${formatCurrency(prior.cpc)} to ${formatCurrency(recent.cpc)} over the last 7 days vs. the previous 7.`,
+          `Cost per click rose from ${money(prior.cpc)} to ${money(recent.cpc)} over the last 7 days vs. the previous 7.`,
           "cpc", cpcChange, "Review targeting and bid strategy; check for rising auction competition.", asOf));
       }
 
@@ -72,7 +75,7 @@ export async function generateAlerts(clientId: string, asOf: Date = new Date()):
       if (cpmChange >= 35) {
         alerts.push(mk(c, "CPM_SPIKE", cpmChange >= 70 ? "CRITICAL" : "WARNING",
           `CPM increased ${cpmChange.toFixed(0)}% on "${c.name}"`,
-          `Cost per 1,000 impressions rose from ${formatCurrency(prior.cpm)} to ${formatCurrency(recent.cpm)}.`,
+          `Cost per 1,000 impressions rose from ${money(prior.cpm)} to ${money(recent.cpm)}.`,
           "cpm", cpmChange, "Broaden audience or refresh creative to improve relevance and reduce cost.", asOf));
       }
 
@@ -103,14 +106,14 @@ export async function generateAlerts(clientId: string, asOf: Date = new Date()):
       if (spendChange >= 60) {
         alerts.push(mk(c, "SPEND_SPIKE", spendChange >= 120 ? "CRITICAL" : "WARNING",
           `Spend increased ${spendChange.toFixed(0)}% on "${c.name}"`,
-          `Spend rose from ${formatCurrency(prior.spend)} to ${formatCurrency(recent.spend)} over 7 days — verify this is intentional.`,
+          `Spend rose from ${money(prior.spend)} to ${money(recent.spend)} over 7 days — verify this is intentional.`,
           "spend", spendChange, "Confirm this matches an intended budget increase; otherwise check for a bid or budget misconfiguration.", asOf));
       }
     }
 
     if (recent.conversions === 0 && recent.spend >= 40) {
       alerts.push(mk(c, "NO_CONVERSIONS", "CRITICAL",
-        `"${c.name}" spent ${formatCurrency(recent.spend)} with zero conversions`,
+        `"${c.name}" spent ${money(recent.spend)} with zero conversions`,
         `No conversions were recorded in the last 7 days despite active spend.`,
         "conversions", null, "Verify the conversion event is configured correctly and review targeting/creative relevance.", asOf));
     }

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { connectMetaWithTokenAction, disconnectMetaAction, resyncMetaAction } from "./actions";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 export function ConnectionCard({
   clientId,
@@ -26,6 +27,7 @@ export function ConnectionCard({
   const [pending, startTransition] = useTransition();
   const [token, setToken] = useState("");
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const { t, intlTag } = useLocale();
 
   function submitToken() {
     startTransition(async () => {
@@ -33,7 +35,7 @@ export function ConnectionCard({
       const res = await connectMetaWithTokenAction(clientId, token);
       if (res.ok) {
         setToken("");
-        setResult({ ok: true, message: `Connected to "${res.adAccountName}" — pulled ${res.campaignCount} campaign${res.campaignCount === 1 ? "" : "s"}.` });
+        setResult({ ok: true, message: t("account.connectedToAccount", { account: res.adAccountName, count: res.campaignCount }) });
       } else {
         setResult({ ok: false, message: res.error });
       }
@@ -44,7 +46,11 @@ export function ConnectionCard({
     startTransition(async () => {
       setResult(null);
       const res = await resyncMetaAction(clientId);
-      setResult(res.ok ? { ok: true, message: `Refreshed — ${res.campaignCount} campaigns synced.` } : { ok: false, message: res.error });
+      setResult(
+        res.ok
+          ? { ok: true, message: t("account.refreshedCount", { count: res.campaignCount }) }
+          : { ok: false, message: res.error }
+      );
     });
   }
 
@@ -56,29 +62,25 @@ export function ConnectionCard({
             <PlugZap className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold">Meta account connection</p>
-            <p className="text-xs text-muted-foreground">
-              Connect a Meta Business ad account to pull live campaign, ad, and insights data.
-            </p>
+            <p className="text-sm font-semibold">{t("account.metaConnection")}</p>
+            <p className="text-xs text-muted-foreground">{t("account.metaConnectionDesc")}</p>
           </div>
         </div>
         {status === "CONNECTED" ? (
           <Badge variant="positive">
-            <CheckCircle2 className="h-3 w-3" /> Connected
+            <CheckCircle2 className="h-3 w-3" /> {t("common.connected")}
           </Badge>
         ) : status === "ERROR" ? (
           <Badge variant="negative">
-            <XCircle className="h-3 w-3" /> Error
+            <XCircle className="h-3 w-3" /> {t("common.error")}
           </Badge>
         ) : (
-          <Badge variant="neutral">Not connected</Badge>
+          <Badge variant="neutral">{t("common.notConnected")}</Badge>
         )}
       </div>
 
       {error === "oauth_failed" && (
-        <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">
-          The Meta authorization was cancelled or failed. Please try connecting again.
-        </p>
+        <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">{t("account.oauthFailed")}</p>
       )}
       {lastError && !error && !result && (
         <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">{lastError}</p>
@@ -92,28 +94,28 @@ export function ConnectionCard({
       {status === "CONNECTED" ? (
         <div className="mt-4 flex items-center gap-2">
           <Button variant="outline" size="sm" disabled={pending} onClick={refresh}>
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh now
+            <RefreshCw className="h-3.5 w-3.5" /> {t("common.refreshNow")}
           </Button>
           <Button variant="destructive" size="sm" disabled={pending} onClick={() => startTransition(() => disconnectMetaAction(clientId))}>
-            Disconnect
+            {t("common.disconnect")}
           </Button>
         </div>
       ) : (
         <div className="mt-4 space-y-4">
           <div>
-            <p className="mb-1.5 text-xs font-medium">Paste a Meta access token</p>
+            <p className="mb-1.5 text-xs font-medium">{t("account.pasteToken")}</p>
             <p className="mb-2 text-xs text-muted-foreground">
-              Quickest way to go live — no Meta App setup needed. Grab a token with{" "}
-              <code className="rounded bg-muted px-1 py-0.5">ads_read</code> access from the{" "}
+              {t("account.pasteTokenDescPrefix")}{" "}
+              <code className="rounded bg-muted px-1 py-0.5">{t("account.scopeName")}</code>{" "}
+              {t("account.pasteTokenDescSuffix")}{" "}
               <a
                 href="https://developers.facebook.com/tools/explorer/"
                 target="_blank"
                 rel="noreferrer"
                 className="text-brand underline"
               >
-                Graph API Explorer
-              </a>{" "}
-              and paste it below.
+                {t("account.graphExplorer")}
+              </a>
             </p>
             <div className="flex gap-2">
               <Input
@@ -125,30 +127,28 @@ export function ConnectionCard({
                 className="text-xs"
               />
               <Button size="sm" disabled={pending || !token.trim()} onClick={submitToken}>
-                {pending ? "Connecting…" : "Connect"}
+                {pending ? t("common.connecting") : t("common.connect")}
               </Button>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+            <span className="h-px flex-1 bg-border" /> {t("account.or")} <span className="h-px flex-1 bg-border" />
           </div>
 
           <div>
             <Button size="sm" variant="outline" asChild disabled={!isMetaConfigured}>
-              <a href={`/api/meta/oauth/start?clientId=${clientId}`}>Connect with Meta (full OAuth)</a>
+              <a href={`/api/meta/oauth/start?clientId=${clientId}`}>{t("account.connectOauth")}</a>
             </Button>
-            {!isMetaConfigured && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Requires a Meta App (META_APP_ID / META_APP_SECRET) set on the server. The token paste above works without one.
-              </p>
-            )}
+            {!isMetaConfigured && <p className="mt-2 text-xs text-muted-foreground">{t("account.oauthRequires")}</p>}
           </div>
         </div>
       )}
 
       {lastSyncedAt && (
-        <p className="mt-3 text-xs text-muted-foreground">Last synced {new Date(lastSyncedAt).toLocaleString()}</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t("common.lastSynced")} {new Date(lastSyncedAt).toLocaleString(intlTag)}
+        </p>
       )}
     </Card>
   );

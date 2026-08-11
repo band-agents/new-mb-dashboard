@@ -3,6 +3,8 @@ import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
 import { getCampaignsTable } from "@/lib/data/campaigns.service";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { CampaignsClient } from "@/components/campaigns/campaigns-client";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function CampaignsPage({
   params,
@@ -22,13 +24,12 @@ export default async function CampaignsPage({
     end,
     status: sp.status ? [sp.status] : undefined,
   });
+  const locale = await getLocale();
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold">Campaigns</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        {rows.length} campaign{rows.length === 1 ? "" : "s"} in the selected period.
-      </p>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "campaigns.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "campaigns.subtitle")}</p>
       <FilterBar />
       <CampaignsClient clientId={clientId} rows={rows} />
     </div>

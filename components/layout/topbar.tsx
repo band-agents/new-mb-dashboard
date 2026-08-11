@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
 type ClientSummary = { id: string; name: string; avatarHue: number; isLive: boolean };
 
@@ -32,6 +34,7 @@ export function Topbar({
 }) {
   const router = useRouter();
   const [dark, setDark] = useState(false);
+  const { t } = useLocale();
 
   useEffect(() => {
     const stored = localStorage.getItem("mbdash-theme");
@@ -49,7 +52,7 @@ export function Topbar({
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur pl-14 md:pl-4">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur ps-14 md:ps-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-surface-muted cursor-pointer">
@@ -59,7 +62,7 @@ export function Topbar({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-[16rem]">
-          <DropdownMenuLabel>Your clients</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("clients.yourClients")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {clients.map((c) => (
             <DropdownMenuItem
@@ -72,27 +75,29 @@ export function Topbar({
                 {c.name}
               </span>
               {c.isLive ? (
-                <Badge variant="positive">Live</Badge>
+                <Badge variant="positive">{t("common.live")}</Badge>
               ) : (
-                <Badge variant="neutral">Demo</Badge>
+                <Badge variant="neutral">{t("common.demo")}</Badge>
               )}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/clients">Manage clients</Link>
+            <Link href="/clients">{t("common.manageClients")}</Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <div className="flex items-center gap-2">
         {isLive ? (
-          <Badge variant="positive">Live data</Badge>
+          <Badge variant="positive">{t("common.liveData")}</Badge>
         ) : (
-          <Badge variant="brand">Demo data</Badge>
+          <Badge variant="brand">{t("common.demoData")}</Badge>
         )}
 
-        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+        <LanguageSwitcher />
+
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={t("common.toggleTheme")}>
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
 
@@ -106,7 +111,7 @@ export function Topbar({
             <DropdownMenuLabel>{userName}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="mr-2 h-3.5 w-3.5" /> Sign out
+              <LogOut className="me-2 h-3.5 w-3.5" /> {t("common.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

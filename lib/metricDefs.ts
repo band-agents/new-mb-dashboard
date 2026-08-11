@@ -18,109 +18,27 @@ export type MetricKey =
 
 export type MetricDef = {
   key: MetricKey;
-  label: string;
-  tooltip: string;
-  format: (v: number) => string;
+  /** i18n dot-path under "metrics.<key>.label" / "metrics.<key>.tooltip" — see lib/i18n/dictionaries. */
   higherIsBetter: boolean;
+  /** Formats a raw value. currency/locale are required for "currency"-typed metrics; ignored otherwise. */
+  format: (v: number, currency: string, locale: string) => string;
 };
 
+const currencyFmt = (v: number, currency: string, locale: string) => formatCurrency(v, currency, locale);
+
 export const METRIC_DEFS: Record<MetricKey, MetricDef> = {
-  spend: {
-    key: "spend",
-    label: "Total Spend",
-    tooltip: "Total amount spent across all ads in the selected period.",
-    format: (v) => formatCurrency(v),
-    higherIsBetter: false,
-  },
-  impressions: {
-    key: "impressions",
-    label: "Impressions",
-    tooltip: "Number of times your ads were shown on screen.",
-    format: (v) => formatCompact(v),
-    higherIsBetter: true,
-  },
-  reach: {
-    key: "reach",
-    label: "Reach",
-    tooltip: "Number of unique people who saw your ads at least once.",
-    format: (v) => formatCompact(v),
-    higherIsBetter: true,
-  },
-  frequency: {
-    key: "frequency",
-    label: "Frequency",
-    tooltip: "Average number of times each person saw your ad. High frequency can indicate ad fatigue.",
-    format: (v) => v.toFixed(2),
-    higherIsBetter: false,
-  },
-  clicks: {
-    key: "clicks",
-    label: "Clicks",
-    tooltip: "Total clicks on your ads, including link clicks and other interactions.",
-    format: (v) => formatCompact(v),
-    higherIsBetter: true,
-  },
-  ctr: {
-    key: "ctr",
-    label: "CTR",
-    tooltip: "Click-through rate: clicks divided by impressions.",
-    format: (v) => formatPercent(v),
-    higherIsBetter: true,
-  },
-  cpc: {
-    key: "cpc",
-    label: "CPC",
-    tooltip: "Average cost per click.",
-    format: (v) => formatCurrency(v),
-    higherIsBetter: false,
-  },
-  cpm: {
-    key: "cpm",
-    label: "CPM",
-    tooltip: "Average cost per 1,000 impressions.",
-    format: (v) => formatCurrency(v),
-    higherIsBetter: false,
-  },
-  conversions: {
-    key: "conversions",
-    label: "Conversions",
-    tooltip: "Total tracked conversions (purchases, leads, sign-ups, and other configured events).",
-    format: (v) => formatNumber(v),
-    higherIsBetter: true,
-  },
-  conversionValue: {
-    key: "conversionValue",
-    label: "Conversion Value",
-    tooltip: "Total monetary value generated from tracked conversions.",
-    format: (v) => formatCurrency(v),
-    higherIsBetter: true,
-  },
-  costPerConversion: {
-    key: "costPerConversion",
-    label: "Cost / Conversion",
-    tooltip: "Average amount spent per conversion.",
-    format: (v) => formatCurrency(v),
-    higherIsBetter: false,
-  },
-  roas: {
-    key: "roas",
-    label: "ROAS",
-    tooltip: "Return on ad spend: conversion value divided by spend.",
-    format: (v) => `${v.toFixed(2)}x`,
-    higherIsBetter: true,
-  },
-  engagement: {
-    key: "engagement",
-    label: "Engagement",
-    tooltip: "Reactions, comments, shares, and other post engagement.",
-    format: (v) => formatCompact(v),
-    higherIsBetter: true,
-  },
-  leads: {
-    key: "leads",
-    label: "Leads",
-    tooltip: "Total leads captured (form fills, instant forms, sign-ups).",
-    format: (v) => formatNumber(v),
-    higherIsBetter: true,
-  },
+  spend: { key: "spend", format: currencyFmt, higherIsBetter: false },
+  impressions: { key: "impressions", format: (v, _c, l) => formatCompact(v, l), higherIsBetter: true },
+  reach: { key: "reach", format: (v, _c, l) => formatCompact(v, l), higherIsBetter: true },
+  frequency: { key: "frequency", format: (v) => v.toFixed(2), higherIsBetter: false },
+  clicks: { key: "clicks", format: (v, _c, l) => formatCompact(v, l), higherIsBetter: true },
+  ctr: { key: "ctr", format: (v) => formatPercent(v), higherIsBetter: true },
+  cpc: { key: "cpc", format: currencyFmt, higherIsBetter: false },
+  cpm: { key: "cpm", format: currencyFmt, higherIsBetter: false },
+  conversions: { key: "conversions", format: (v, _c, l) => formatNumber(v, l), higherIsBetter: true },
+  conversionValue: { key: "conversionValue", format: currencyFmt, higherIsBetter: true },
+  costPerConversion: { key: "costPerConversion", format: currencyFmt, higherIsBetter: false },
+  roas: { key: "roas", format: (v) => `${v.toFixed(2)}x`, higherIsBetter: true },
+  engagement: { key: "engagement", format: (v, _c, l) => formatCompact(v, l), higherIsBetter: true },
+  leads: { key: "leads", format: (v, _c, l) => formatNumber(v, l), higherIsBetter: true },
 };

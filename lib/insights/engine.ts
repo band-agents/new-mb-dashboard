@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getInsightRows } from "@/lib/data/insights";
+import { getClientCurrency } from "@/lib/data/currency";
 import { aggregate } from "@/lib/data/metrics";
 import { pctChange, formatCurrency, formatPercent } from "@/lib/utils";
 import { comparisonRange, type ComparePreset } from "@/lib/data/dateRange";
@@ -24,6 +25,8 @@ export async function generateOverviewInsights(params: {
   compare: ComparePreset;
 }): Promise<Insight[]> {
   const insights: Insight[] = [];
+  const currency = await getClientCurrency(params.clientId);
+  const money = (v: number) => formatCurrency(v, currency);
 
   const campaigns = await prisma.campaign.findMany({
     where: { adAccount: { clientId: params.clientId } },
@@ -71,7 +74,7 @@ export async function generateOverviewInsights(params: {
         id: `roas-mover-${best.campaign.id}`,
         kind: bestChange > 0 ? "positive" : "negative",
         title: `ROAS ${bestChange > 0 ? "increased" : "decreased"} ${Math.abs(bestChange).toFixed(0)}% for "${best.campaign.name}"`,
-        detail: `ROAS moved from ${best.previous!.roas.toFixed(2)}x to ${best.current.roas.toFixed(2)}x versus the comparison period, on ${formatCurrency(best.current.spend)} of spend.`,
+        detail: `ROAS moved from ${best.previous!.roas.toFixed(2)}x to ${best.current.roas.toFixed(2)}x versus the comparison period, on ${money(best.current.spend)} of spend.`,
         metric: "roas",
         isRecommendation: false,
       });
@@ -84,8 +87,8 @@ export async function generateOverviewInsights(params: {
     insights.push({
       id: `no-conversions-${w.campaign.id}`,
       kind: "negative",
-      title: `"${w.campaign.name}" spent ${formatCurrency(w.current.spend)} with no recorded conversions`,
-      detail: `This campaign is active and has spent ${formatCurrency(w.current.spend)} in the selected period without a single tracked conversion. Recommendation: review targeting, creative, and the conversion event setup for this campaign.`,
+      title: `"${w.campaign.name}" spent ${money(w.current.spend)} with no recorded conversions`,
+      detail: `This campaign is active and has spent ${money(w.current.spend)} in the selected period without a single tracked conversion. Recommendation: review targeting, creative, and the conversion event setup for this campaign.`,
       metric: "conversions",
       isRecommendation: true,
     });
@@ -100,7 +103,7 @@ export async function generateOverviewInsights(params: {
       id: `top-roas-${topRoas.campaign.id}`,
       kind: "opportunity",
       title: `"${topRoas.campaign.name}" is your most efficient campaign right now`,
-      detail: `It's returning ${topRoas.current.roas.toFixed(2)}x ROAS on ${formatCurrency(topRoas.current.spend)} spent. Recommendation: consider increasing its budget if it has room to scale without frequency climbing too fast.`,
+      detail: `It's returning ${topRoas.current.roas.toFixed(2)}x ROAS on ${money(topRoas.current.spend)} spent. Recommendation: consider increasing its budget if it has room to scale without frequency climbing too fast.`,
       metric: "roas",
       isRecommendation: true,
     });
@@ -130,6 +133,8 @@ export async function generateCampaignInsights(params: {
   compare: ComparePreset;
 }): Promise<Insight[]> {
   const insights: Insight[] = [];
+  const currency = await getClientCurrency(params.clientId);
+  const money = (v: number) => formatCurrency(v, currency);
   const campaign = await prisma.campaign.findUnique({ where: { id: params.campaignId } });
   if (!campaign) return insights;
 
@@ -187,7 +192,7 @@ export async function generateCampaignInsights(params: {
         id: "cpm-spike",
         kind: "negative",
         title: `CPM spiked ${cpmChange.toFixed(0)}%`,
-        detail: `Cost per 1,000 impressions rose from ${formatCurrency(previous.cpm)} to ${formatCurrency(current.cpm)}, increasing the cost to reach the same audience.`,
+        detail: `Cost per 1,000 impressions rose from ${money(previous.cpm)} to ${money(current.cpm)}, increasing the cost to reach the same audience.`,
         metric: "cpm",
         isRecommendation: false,
       });
@@ -198,7 +203,7 @@ export async function generateCampaignInsights(params: {
     insights.push({
       id: "no-conversions",
       kind: "negative",
-      title: `No recorded conversions on ${formatCurrency(current.spend)} of spend`,
+      title: `No recorded conversions on ${money(current.spend)} of spend`,
       detail: `Recommendation: verify the conversion event is firing correctly, and review whether targeting matches the offer.`,
       metric: "conversions",
       isRecommendation: true,

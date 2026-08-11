@@ -3,6 +3,8 @@ import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
 import { getBreakdown } from "@/lib/data/audiences.service";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { BreakdownView } from "@/components/audiences/breakdown-view";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function AudiencesPage({
   params,
@@ -23,13 +25,12 @@ export default async function AudiencesPage({
     getBreakdown({ clientId, start, end, dimension: "device" }),
     getBreakdown({ clientId, start, end, dimension: "placement" }),
   ]);
+  const locale = await getLocale();
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold">Audiences</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        See which audiences and placements are performing best across all campaigns.
-      </p>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "audiences.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "audiences.subtitle")}</p>
       <FilterBar showStatusFilter={false} />
       <BreakdownView data={{ ageRange, gender, region, device, placement }} />
     </div>

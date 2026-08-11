@@ -11,24 +11,26 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { formatDate } from "@/lib/utils";
+import { formatCompact, formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { useCurrency } from "@/components/currency/currency-provider";
 
 export type TrendPoint = { date: string; [key: string]: string | number };
 
 export type TrendFormat = "number" | "currency" | "compact" | "percent" | "decimal";
 
-function formatByKind(kind: TrendFormat, v: number): string {
+function formatByKind(kind: TrendFormat, v: number, currency: string, locale: string): string {
   switch (kind) {
     case "currency":
-      return `$${Math.round(v).toLocaleString()}`;
+      return formatCurrency(v, currency, locale);
     case "compact":
-      return Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+      return formatCompact(v, locale);
     case "percent":
       return `${v.toFixed(1)}%`;
     case "decimal":
       return v.toFixed(2);
     default:
-      return Math.round(v).toLocaleString();
+      return formatNumber(v, locale);
   }
 }
 
@@ -51,7 +53,9 @@ export function TrendChart({
   format?: TrendFormat;
   height?: number;
 }) {
-  const formatValue = (v: number) => formatByKind(format, v);
+  const { intlTag, t } = useLocale();
+  const currency = useCurrency();
+  const formatValue = (v: number) => formatByKind(format, v, currency, intlTag);
   return (
     <Card>
       <CardHeader>
@@ -72,7 +76,7 @@ export function TrendChart({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis
               dataKey="date"
-              tickFormatter={(d) => formatDate(d)}
+              tickFormatter={(d) => formatDate(d, intlTag)}
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
               axisLine={{ stroke: "var(--color-border)" }}
               tickLine={false}
@@ -92,14 +96,14 @@ export function TrendChart({
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              labelFormatter={(d) => formatDate(d as string)}
+              labelFormatter={(d) => formatDate(d as string, intlTag)}
               formatter={(v) => formatValue(Number(v))}
             />
             {compareKey && <Legend wrapperStyle={{ fontSize: 12 }} />}
             <Area
               type="monotone"
               dataKey={dataKey}
-              name="Current"
+              name={t("common.current")}
               stroke={color}
               strokeWidth={2}
               fill={`url(#fill-${dataKey})`}
@@ -109,7 +113,7 @@ export function TrendChart({
               <Area
                 type="monotone"
                 dataKey={compareKey}
-                name="Previous period"
+                name={t("common.previousPeriodShort")}
                 stroke="var(--color-muted-foreground)"
                 strokeWidth={1.5}
                 strokeDasharray="4 3"

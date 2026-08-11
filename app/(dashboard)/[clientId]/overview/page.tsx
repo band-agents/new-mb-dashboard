@@ -8,6 +8,8 @@ import { TrendChart } from "@/components/charts/trend-chart";
 import { InsightCard } from "@/components/insights/insight-card";
 import { EmptyState } from "@/components/states/empty-error";
 import { Sparkles } from "lucide-react";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 const PRIMARY_METRICS = ["spend", "conversions", "roas", "conversionValue"] as const;
 const SECONDARY_METRICS = [
@@ -33,6 +35,7 @@ export default async function OverviewPage({
   const { clientId } = await params;
   await requireClientInScope(clientId);
   const sp = await searchParams;
+  const locale = await getLocale();
 
   const range = (sp.range as DateRangePreset) || "last_30_days";
   const compare = (sp.compare as ComparePreset) || "previous_period";
@@ -54,17 +57,14 @@ export default async function OverviewPage({
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Overview</h1>
+        <h1 className="text-xl font-semibold">{t(locale, "overview.title")}</h1>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">How this business is performing right now.</p>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "overview.subtitle")}</p>
 
       <FilterBar />
 
       {!data.hasData ? (
-        <EmptyState
-          title="No performance data for this period"
-          description="Try a wider date range, or connect a Meta account from the Account page to pull live data."
-        />
+        <EmptyState title={t(locale, "overview.noData")} description={t(locale, "overview.noDataDesc")} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -93,32 +93,32 @@ export default async function OverviewPage({
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <TrendChart
-              title="Spend Over Time"
-              description="Daily ad spend for the selected period"
+              title={t(locale, "overview.spendOverTime")}
+              description={t(locale, "overview.spendOverTimeDesc")}
               data={data.series}
               dataKey="spend"
               color="var(--color-chart-1)"
               format="currency"
             />
             <TrendChart
-              title="Revenue & ROAS Trend"
-              description="Conversion value generated per day"
+              title={t(locale, "overview.revenueRoasTrend")}
+              description={t(locale, "overview.revenueRoasTrendDesc")}
               data={data.series}
               dataKey="conversionValue"
               color="var(--color-chart-4)"
               format="currency"
             />
             <TrendChart
-              title="Conversions Trend"
-              description="Tracked conversions per day"
+              title={t(locale, "overview.conversionsTrend")}
+              description={t(locale, "overview.conversionsTrendDesc")}
               data={data.series}
               dataKey="conversions"
               color="var(--color-chart-3)"
               format="number"
             />
             <TrendChart
-              title="Reach & Impressions"
-              description="Unique people reached per day"
+              title={t(locale, "overview.reachImpressions")}
+              description={t(locale, "overview.reachImpressionsDesc")}
               data={data.series}
               dataKey="reach"
               color="var(--color-chart-2)"
@@ -129,13 +129,13 @@ export default async function OverviewPage({
           <div className="mt-6">
             <div className="mb-2 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-brand" />
-              <h2 className="text-sm font-semibold">AI Insights</h2>
-              <span className="text-xs text-muted-foreground">Generated from this period&apos;s data</span>
+              <h2 className="text-sm font-semibold">{t(locale, "overview.aiInsights")}</h2>
+              <span className="text-xs text-muted-foreground">{t(locale, "overview.aiInsightsGeneratedFrom")}</span>
             </div>
             {insights.length === 0 ? (
               <EmptyState
-                title="No notable changes detected"
-                description="We didn't find any significant shifts in performance for this period."
+                title={t(locale, "overview.noNotableChanges")}
+                description={t(locale, "overview.noNotableChangesDesc")}
               />
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

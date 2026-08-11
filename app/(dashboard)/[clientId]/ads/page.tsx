@@ -3,6 +3,8 @@ import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
 import { getAdsTable } from "@/lib/data/ads.service";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { AdsClient } from "@/components/ads/ads-client";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function AdsPage({
   params,
@@ -17,11 +19,12 @@ export default async function AdsPage({
   const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days");
 
   const rows = await getAdsTable({ clientId, start, end, adSetId: sp.adSetId });
+  const locale = await getLocale();
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold">Ads</h1>
-      <p className="mb-4 text-sm text-muted-foreground">{rows.length} ads across all campaigns.</p>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "ads.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "ads.subtitle")}</p>
       <FilterBar showStatusFilter={false} />
       <AdsClient clientId={clientId} rows={rows} />
     </div>

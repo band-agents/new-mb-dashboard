@@ -6,6 +6,8 @@ import { AlertCard } from "@/components/alerts/alert-card";
 import { InsightCard } from "@/components/insights/insight-card";
 import { EmptyState } from "@/components/states/empty-error";
 import { Sparkles, ShieldCheck } from "lucide-react";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function AlertsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -18,19 +20,18 @@ export default async function AlertsPage({ params }: { params: Promise<{ clientI
   const critical = alerts.filter((a) => a.severity === "CRITICAL");
   const warning = alerts.filter((a) => a.severity === "WARNING");
   const info = alerts.filter((a) => a.severity === "INFO");
+  const locale = await getLocale();
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold">Alerts & Insights</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Automatically detected changes, anomalies, and opportunities from the last 7 days vs. the prior 7.
-      </p>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "alerts.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "alerts.subtitle")}</p>
 
       {alerts.length === 0 ? (
         <div className="mb-6">
           <EmptyState
-            title="No active alerts"
-            description="We didn't detect any significant anomalies in active campaigns right now."
+            title={t(locale, "alerts.noActiveAlerts")}
+            description={t(locale, "alerts.noActiveAlertsDesc")}
             action={<ShieldCheck className="mt-1 h-5 w-5 text-positive" />}
           />
         </div>
@@ -50,10 +51,10 @@ export default async function AlertsPage({ params }: { params: Promise<{ clientI
 
       <div className="mb-2 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-brand" />
-        <h2 className="text-sm font-semibold">AI Insights — Last 30 days</h2>
+        <h2 className="text-sm font-semibold">{t(locale, "alerts.aiInsightsTitle")}</h2>
       </div>
       {insights.length === 0 ? (
-        <EmptyState title="No notable insights" description="Nothing significant to report for this period." />
+        <EmptyState title={t(locale, "alerts.noNotableInsights")} description={t(locale, "alerts.noNotableInsightsDesc")} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {insights.map((i) => (

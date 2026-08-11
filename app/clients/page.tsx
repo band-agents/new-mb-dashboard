@@ -5,28 +5,28 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/states/empty-error";
 import { AddClientDialog } from "./add-client-dialog";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function ClientsPage() {
   const session = await requireSession();
   const clients = await listClientsInScope();
+  const locale = await getLocale();
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Your clients</h1>
+          <h1 className="text-xl font-semibold">{t(locale, "clients.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Signed in as {session.user.email} — pick a client to open their dashboard.
+            {t(locale, "clients.subtitle", { email: session.user.email ?? "" })}
           </p>
         </div>
         <AddClientDialog />
       </div>
 
       {clients.length === 0 ? (
-        <EmptyState
-          title="No clients yet"
-          description="Add your first client to start monitoring their Meta performance."
-        />
+        <EmptyState title={t(locale, "clients.noClientsYet")} description={t(locale, "clients.noClientsDesc")} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((c) => (
@@ -41,12 +41,12 @@ export default async function ClientsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {c.metaConnection?.status === "CONNECTED" ? (
-                    <Badge variant="positive">Live</Badge>
+                    <Badge variant="positive">{t(locale, "common.live")}</Badge>
                   ) : (
-                    <Badge variant="brand">Demo</Badge>
+                    <Badge variant="brand">{t(locale, "common.demo")}</Badge>
                   )}
                   <span className="text-xs text-muted-foreground">
-                    {c.adAccounts.length} ad account{c.adAccounts.length === 1 ? "" : "s"}
+                    {c.adAccounts.length} {t(locale, c.adAccounts.length === 1 ? "clients.adAccount" : "clients.adAccounts")}
                   </span>
                 </div>
               </Card>

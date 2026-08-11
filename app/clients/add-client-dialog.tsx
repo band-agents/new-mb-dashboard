@@ -6,22 +6,21 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger } 
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createClientAction } from "./actions";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 export function AddClientDialog() {
   const [open, setOpen] = useState(false);
+  const { t } = useLocale();
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="h-4 w-4" /> Add client
+          <Plus className="h-4 w-4" /> {t("clients.addClient")}
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogTitle>Add a new client</DialogTitle>
-        <DialogDescription>
-          Creates a workspace for this customer in Demo Mode. Connect their Meta account any time from
-          the Account page.
-        </DialogDescription>
+        <DialogTitle>{t("clients.addNewClient")}</DialogTitle>
+        <DialogDescription>{t("clients.addClientDesc")}</DialogDescription>
         <form
           action={async (fd) => {
             await createClientAction(fd);
@@ -30,15 +29,15 @@ export function AddClientDialog() {
           className="mt-4 space-y-3"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="name">Business name</Label>
-            <Input id="name" name="name" placeholder="e.g. Northside Dental" required />
+            <Label htmlFor="name">{t("clients.businessName")}</Label>
+            <Input id="name" name="name" placeholder={t("clients.businessNamePlaceholder")} required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="industry">Industry (optional)</Label>
-            <Input id="industry" name="industry" placeholder="e.g. Healthcare" />
+            <Label htmlFor="industry">{t("clients.industryOptional")}</Label>
+            <Input id="industry" name="industry" placeholder={t("clients.industryPlaceholder")} />
           </div>
           <Button type="submit" className="w-full">
-            Create client
+            {t("clients.createClient")}
           </Button>
         </form>
       </DialogContent>

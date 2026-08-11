@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "./connection-card";
 import { updateClientAction } from "./actions";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
 
 export default async function AccountPage({
   params,
@@ -18,13 +20,14 @@ export default async function AccountPage({
   const { clientId } = await params;
   const { client, session } = await requireClientInScope(clientId);
   const sp = await searchParams;
+  const locale = await getLocale();
 
   const adAccounts = await prisma.adAccount.findMany({ where: { clientId } });
 
   return (
     <div className="max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold">Account</h1>
-      <p className="mb-4 text-sm text-muted-foreground">Connection, ad accounts, and dashboard settings for {client.name}.</p>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "account.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "account.subtitle", { client: client.name })}</p>
 
       <div className="space-y-4">
         <ConnectionCard
@@ -37,9 +40,9 @@ export default async function AccountPage({
         />
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold">Ad accounts</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t(locale, "account.adAccountsTitle")}</h2>
           {adAccounts.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No ad accounts yet.</p>
+            <p className="text-xs text-muted-foreground">{t(locale, "account.noAdAccounts")}</p>
           ) : (
             <ul className="space-y-2">
               {adAccounts.map((a) => (
@@ -56,24 +59,24 @@ export default async function AccountPage({
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold">Client settings</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t(locale, "account.clientSettings")}</h2>
           <form action={updateClientAction.bind(null, clientId)} className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="name">Business name</Label>
+              <Label htmlFor="name">{t(locale, "account.businessName")}</Label>
               <Input id="name" name="name" defaultValue={client.name} required />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="industry">Industry</Label>
+              <Label htmlFor="industry">{t(locale, "account.industry")}</Label>
               <Input id="industry" name="industry" defaultValue={client.industry ?? ""} />
             </div>
             <Button type="submit" size="sm">
-              Save changes
+              {t(locale, "common.saveChanges")}
             </Button>
           </form>
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold">Signed in as</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t(locale, "account.signedInAs")}</h2>
           <p className="text-sm">{session.user.name}</p>
           <p className="text-xs text-muted-foreground">{session.user.email} · {session.user.role}</p>
         </Card>

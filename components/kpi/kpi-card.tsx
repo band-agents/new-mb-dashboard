@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { METRIC_DEFS, type MetricKey } from "@/lib/metricDefs";
 import { pctChange, cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { useCurrency } from "@/components/currency/currency-provider";
 
 export function KpiCard({
   metricKey,
@@ -20,6 +22,8 @@ export function KpiCard({
   sparkline?: number[];
   emphasize?: boolean;
 }) {
+  const { t, intlTag } = useLocale();
+  const currency = useCurrency();
   const def = METRIC_DEFS[metricKey];
   const hasCompare = previousValue !== undefined && previousValue !== null;
   const change = hasCompare ? pctChange(value, previousValue!) : null;
@@ -28,18 +32,18 @@ export function KpiCard({
   return (
     <Card className={cn("p-4", emphasize && "ring-1 ring-brand/30")}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground">{def.label}</span>
+        <span className="text-xs font-medium text-muted-foreground">{t(`metrics.${metricKey}.label`)}</span>
         <Tooltip>
           <TooltipTrigger asChild>
             <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground/60" />
           </TooltipTrigger>
-          <TooltipContent>{def.tooltip}</TooltipContent>
+          <TooltipContent>{t(`metrics.${metricKey}.tooltip`)}</TooltipContent>
         </Tooltip>
       </div>
 
       <div className="mt-2 flex items-end justify-between gap-3">
         <div>
-          <div className="text-2xl font-semibold tabular-nums text-foreground">{def.format(value)}</div>
+          <div className="text-2xl font-semibold tabular-nums text-foreground">{def.format(value, currency, intlTag)}</div>
           {change !== null && (
             <div
               className={cn(
@@ -55,7 +59,7 @@ export function KpiCard({
                 <Minus className="h-3 w-3" />
               )}
               {Math.abs(change).toFixed(1)}%
-              <span className="text-muted-foreground font-normal">vs prev.</span>
+              <span className="text-muted-foreground font-normal">{t("metrics.vsPrevious")}</span>
             </div>
           )}
         </div>

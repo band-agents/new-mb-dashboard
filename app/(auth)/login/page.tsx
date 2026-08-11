@@ -7,9 +7,11 @@ import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(loginAction, undefined);
+  const { t } = useLocale();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -18,33 +20,31 @@ export default function LoginPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand text-brand-foreground">
             <BarChart3 className="h-5 w-5" />
           </div>
-          <h1 className="text-lg font-semibold">Sign in to MetaBoard</h1>
-          <p className="text-center text-sm text-muted-foreground">
-            Your agency&apos;s Meta performance, in one place.
-          </p>
+          <h1 className="text-lg font-semibold">{t("auth.signInTitle")}</h1>
+          <p className="text-center text-sm text-muted-foreground">{t("auth.signInSubtitle")}</p>
         </div>
 
         <Card className="p-5">
           <form action={formAction} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input id="email" name="email" type="email" placeholder="you@agency.com" required defaultValue="band.digi.tech@gmail.com" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Input id="password" name="password" type="password" placeholder="••••••••" required defaultValue="demo1234" />
             </div>
             {state?.error && <p className="text-xs text-negative">{state.error}</p>}
             <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Signing in…" : "Sign in"}
+              {pending ? t("common.connecting") : t("auth.signIn")}
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Demo login pre-filled — <span className="font-medium text-foreground">band.digi.tech@gmail.com</span> / demo1234
+            {t("auth.demoLoginHint", { email: "band.digi.tech@gmail.com", password: "demo1234" })}
           </p>
         </Card>
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Need an account? <Link href="/register" className="text-brand hover:underline">Create one</Link>
+          {t("auth.needAccount")} <Link href="/register" className="text-brand hover:underline">{t("auth.createOne")}</Link>
         </p>
       </div>
     </div>

@@ -1,8 +1,11 @@
+"use client";
+
 import { Lightbulb, TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Insight } from "@/lib/insights/engine";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 const KIND_STYLES: Record<Insight["kind"], { icon: React.ElementType; className: string }> = {
   positive: { icon: TrendingUp, className: "text-positive bg-positive-soft" },
@@ -12,6 +15,7 @@ const KIND_STYLES: Record<Insight["kind"], { icon: React.ElementType; className:
 };
 
 export function InsightCard({ insight }: { insight: Insight }) {
+  const { t } = useLocale();
   const { icon: Icon, className } = KIND_STYLES[insight.kind];
   return (
     <Card className="flex gap-3 p-3.5">
@@ -25,7 +29,7 @@ export function InsightCard({ insight }: { insight: Insight }) {
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{insight.detail}</p>
         {insight.isRecommendation && (
           <Badge variant="outline" className="mt-2">
-            Recommendation
+            {t("alerts.recommendation")}
           </Badge>
         )}
       </div>

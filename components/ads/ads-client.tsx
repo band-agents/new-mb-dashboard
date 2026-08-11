@@ -6,6 +6,8 @@ import { DataTable, rowsToCsv, downloadCsv } from "@/components/tables/data-tabl
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import type { AdRow } from "@/lib/data/ads.service";
+import { useCurrency } from "@/components/currency/currency-provider";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
   ACTIVE: "positive",
@@ -14,10 +16,15 @@ const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
 };
 
 export function AdsClient({ clientId, rows }: { clientId: string; rows: AdRow[] }) {
+  const currency = useCurrency();
+  const { intlTag: locale, t } = useLocale();
+  const money = (v: number) => formatCurrency(v, currency, locale);
+  const num = (v: number) => formatNumber(v, locale);
+
   const columns: ColumnDef<AdRow>[] = [
     {
       accessorKey: "name",
-      header: "Ad",
+      header: t("ads.name"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           {row.original.creative && (
@@ -30,40 +37,40 @@ export function AdsClient({ clientId, rows }: { clientId: string; rows: AdRow[] 
     },
     {
       accessorKey: "campaignName",
-      header: "Campaign",
+      header: t("campaigns.name"),
       cell: ({ row }) => (
         <Link href={`/${clientId}/campaigns/${row.original.campaignId}`} className="hover:text-brand hover:underline">
           {row.original.campaignName}
         </Link>
       ),
     },
-    { accessorKey: "adSetName", header: "Ad Set" },
+    { accessorKey: "adSetName", header: t("adSets.name") },
     {
       accessorKey: "status",
-      header: "Status",
+      header: t("common.status"),
       cell: ({ row }) => <Badge variant={STATUS_VARIANT[row.original.status] ?? "neutral"}>{row.original.status}</Badge>,
     },
-    { accessorKey: "spend", header: "Spend", cell: ({ row }) => formatCurrency(row.original.spend) },
-    { accessorKey: "impressions", header: "Impressions", cell: ({ row }) => formatNumber(row.original.impressions) },
-    { accessorKey: "reach", header: "Reach", cell: ({ row }) => formatNumber(row.original.reach) },
-    { accessorKey: "ctr", header: "CTR", cell: ({ row }) => formatPercent(row.original.ctr) },
-    { accessorKey: "cpc", header: "CPC", cell: ({ row }) => formatCurrency(row.original.cpc) },
-    { accessorKey: "cpm", header: "CPM", cell: ({ row }) => formatCurrency(row.original.cpm) },
-    { accessorKey: "engagement", header: "Engagement", cell: ({ row }) => formatNumber(row.original.engagement ?? 0) },
-    { accessorKey: "conversions", header: "Conversions", cell: ({ row }) => formatNumber(row.original.conversions) },
+    { accessorKey: "spend", header: t("kpi.spend"), cell: ({ row }) => money(row.original.spend) },
+    { accessorKey: "impressions", header: t("kpi.impressions"), cell: ({ row }) => num(row.original.impressions) },
+    { accessorKey: "reach", header: t("kpi.reach"), cell: ({ row }) => num(row.original.reach) },
+    { accessorKey: "ctr", header: t("kpi.ctr"), cell: ({ row }) => formatPercent(row.original.ctr) },
+    { accessorKey: "cpc", header: t("kpi.cpc"), cell: ({ row }) => money(row.original.cpc) },
+    { accessorKey: "cpm", header: t("kpi.cpm"), cell: ({ row }) => money(row.original.cpm) },
+    { accessorKey: "engagement", header: t("metrics.engagement.label"), cell: ({ row }) => num(row.original.engagement ?? 0) },
+    { accessorKey: "conversions", header: t("kpi.conversions"), cell: ({ row }) => num(row.original.conversions) },
     {
       accessorKey: "costPerConversion",
-      header: "Cost/Conv.",
-      cell: ({ row }) => (row.original.conversions > 0 ? formatCurrency(row.original.costPerConversion) : "—"),
+      header: t("kpi.costPerConversion"),
+      cell: ({ row }) => (row.original.conversions > 0 ? money(row.original.costPerConversion) : "—"),
     },
-    { accessorKey: "roas", header: "ROAS", cell: ({ row }) => (row.original.roas > 0 ? `${row.original.roas.toFixed(2)}x` : "—") },
+    { accessorKey: "roas", header: t("kpi.roas"), cell: ({ row }) => (row.original.roas > 0 ? `${row.original.roas.toFixed(2)}x` : "—") },
   ];
 
   return (
     <DataTable
       columns={columns}
       data={rows}
-      searchPlaceholder="Search ads…"
+      searchPlaceholder={t("common.search")}
       getSearchText={(r) => `${r.name} ${r.campaignName} ${r.adSetName}`}
       onExportCsv={(selected) =>
         downloadCsv(
@@ -80,7 +87,7 @@ export function AdsClient({ clientId, rows }: { clientId: string; rows: AdRow[] 
           )
         )
       }
-      emptyTitle="No ads found"
+      emptyTitle={t("empty.noData")}
     />
   );
 }
