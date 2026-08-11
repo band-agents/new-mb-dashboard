@@ -1,0 +1,254 @@
+// Meta Business Analytics Dashboard — multi-tenant data model.
+// SQLite for local/dev; every field is Postgres-compatible so switching
+// `datasource.provider` + DATABASE_URL is the only change needed for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Tenancy ----------
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users   User[]
+  clients Client[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("MEMBER") // OWNER | ADMIN | MEMBER
+  createdAt    DateTime @default(now())
+
+  preference UserPreference?
+}
+
+model UserPreference {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme            String  @default("system") // light | dark | system
+  defaultDateRange String  @default("last_30_days")
+  emailAlerts      Boolean @default(true)
+}
+
+// A Client is one customer/business the agency manages.
+model Client {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name      String
+  industry  String?
+  avatarHue Int      @default(210) // deterministic color for avatar chip
+  createdAt DateTime @default(now())
+
+  metaConnection MetaConnection?
+  adAccounts     AdAccount[]
+  reportConfigs  ReportConfig[]
+  alerts         Alert[]
+
+  @@index([organizationId])
+}
+
+// ---------- Meta connection (server-side only; tokens encrypted at rest) ----------
+
+model MetaConnection {
+  id        String @id @default(cuid())
+  clientId  String @unique
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status             String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONNECTED | EXPIRED | ERROR
+  accessTokenEnc     String? // AES-256-GCM ciphertext, never sent to the client
+  tokenExpiresAt     DateTime?
+  scopes             String? // comma-separated granted scopes
+  metaUserId         String?
+  lastSyncedAt       DateTime?
+  lastError          String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model AdAccount {
+  id            String @id @default(cuid())
+  clientId      String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  metaAccountId String // act_XXXXXXXX in live mode; synthetic id in demo mode
+  name          String
+  currency      String @default("USD")
+  status        String @default("ACTIVE")
+  timezone      String @default("America/New_York")
+
+  campaigns Campaign[]
+  insights  InsightSnapshot[]
+
+  @@index([clientId])
+}
+
+model Campaign {
+  id             String    @id @default(cuid())
+  adAccountId    String
+  adAccount      AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  metaCampaignId String
+  name           String
+  status         String // ACTIVE | PAUSED | ARCHIVED | COMPLETED
+  objective      String // AWARENESS | TRAFFIC | ENGAGEMENT | LEADS | APP_PROMOTION | SALES
+  dailyBudget    Float?
+  lifetimeBudget Float?
+  startDate      DateTime
+  endDate        DateTime?
+
+  adSets   AdSet[]
+  insights InsightSnapshot[]
+
+  @@index([adAccountId])
+}
+
+model AdSet {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  metaAdSetId       String
+  name              String
+  status            String
+  dailyBudget       Float?
+  optimizationGoal  String @default("CONVERSIONS")
+  targetingSummary  String // JSON string: { ageMin, ageMax, genders[], locations[], interests[] }
+
+  ads      Ad[]
+  insights InsightSnapshot[]
+
+  @@index([campaignId])
+}
+
+model Ad {
+  id       String @id @default(cuid())
+  adSetId  String
+  adSet    AdSet  @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+
+  metaAdId String
+  name     String
+  status   String
+
+  creative Creative?
+  insights InsightSnapshot[]
+
+  @@index([adSetId])
+}
+
+model Creative {
+  id           String @id @default(cuid())
+  adId         String @unique
+  ad           Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  name         String
+  format       String // IMAGE | VIDEO | CAROUSEL | COLLECTION
+  thumbnailUrl String
+  headline     String
+  body         String
+  callToAction String @default("LEARN_MORE")
+}
+
+// One row per day per entity/breakdown combination.
+// Serves as both the live-data cache and the demo dataset store.
+model InsightSnapshot {
+  id String @id @default(cuid())
+
+  date  DateTime
+  level String // ACCOUNT | CAMPAIGN | ADSET | AD
+
+  adAccountId String?
+  adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adSetId     String?
+  adSet       AdSet?     @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  adId        String?
+  ad          Ad?        @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  // optional breakdown dimensions — null means "all"
+  placement String?
+  device    String?
+  ageRange  String?
+  gender    String?
+  region    String?
+  platform  String? // facebook | instagram | audience_network | messenger
+
+  spend           Float @default(0)
+  impressions     Int   @default(0)
+  reach           Int   @default(0)
+  frequency       Float @default(0)
+  clicks          Int   @default(0)
+  linkClicks      Int   @default(0)
+  conversions     Int   @default(0)
+  conversionValue Float @default(0)
+  leads           Int   @default(0)
+  purchases       Int   @default(0)
+  addToCart       Int   @default(0)
+  initiateCheckout Int  @default(0)
+  pageViews       Int   @default(0)
+  viewContent     Int   @default(0)
+  registrations   Int   @default(0)
+  engagement      Int   @default(0)
+
+  source String @default("DEMO") // LIVE | DEMO
+
+  @@index([campaignId, date])
+  @@index([adSetId, date])
+  @@index([adId, date])
+  @@index([adAccountId, date])
+}
+
+model ReportConfig {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name              String
+  dateRangeStart    DateTime
+  dateRangeEnd      DateTime
+  campaignIds       String // JSON array
+  metrics           String // JSON array
+  breakdown         String? // campaign | placement | age | gender | device | region
+  comparisonPeriod  String? // previous_period | previous_month | previous_year | none
+  createdAt         DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model Alert {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  severity         String // INFO | WARNING | CRITICAL
+  type             String // CPC_SPIKE | CPM_SPIKE | CTR_DROP | ROAS_DROP | SPEND_SPIKE | NO_CONVERSIONS | OUTPERFORMING | CREATIVE_FATIGUE | HIGH_FREQUENCY | BUDGET_PACING
+  title            String
+  description      String
+  metric           String
+  changePercent    Float?
+  affectedEntityType String // campaign | adset | ad | account
+  affectedEntityId   String?
+  affectedEntityName String
+  suggestedAction  String
+  date             DateTime @default(now())
+  isRead           Boolean  @default(false)
+
+  @@index([clientId, date])
+}
