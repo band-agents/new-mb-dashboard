@@ -1,13 +1,12 @@
 // Meta Business Analytics Dashboard — multi-tenant data model.
-// SQLite for local/dev; every field is Postgres-compatible so switching
-// `datasource.provider` + DATABASE_URL is the only change needed for production.
+// Postgres (Neon, provisioned via Vercel Storage) in both local dev and production.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

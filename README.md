@@ -8,7 +8,7 @@ integration is fully wired server-side and activates the moment you add Meta App
 
 - **Next.js 16 (App Router) + TypeScript** — Server Components fetch data directly; Route Handlers
   and Server Actions keep Meta tokens server-side only.
-- **Prisma + SQLite** (`prisma/schema.prisma`) — Postgres-compatible; swap `provider`/`DATABASE_URL` for production.
+- **Prisma + Postgres** (`prisma/schema.prisma`) — a free Neon Postgres database, provisioned via Vercel's Storage tab.
 - **Auth.js (NextAuth v5)** — credentials login, JWT sessions, org-scoped multi-tenancy.
 - **Tailwind CSS v4 + Radix UI primitives**, **Recharts**, **TanStack Table**, **TanStack Query**.
 
