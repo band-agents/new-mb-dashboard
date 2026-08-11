@@ -11,11 +11,13 @@ import {
   FileText,
   BellRing,
   Settings,
+  Combine,
 } from "lucide-react";
 
 // labelKey maps to lib/i18n/dictionaries/{en,ar}.ts under "nav".
 export const NAV_ITEMS = [
   { href: "overview", labelKey: "overview", icon: LayoutDashboard },
+  { href: "unified", labelKey: "unified", icon: Combine },
   { href: "campaigns", labelKey: "campaigns", icon: Megaphone },
   { href: "ad-sets", labelKey: "adSets", icon: Layers },
   { href: "ads", labelKey: "ads", icon: ImageIcon },

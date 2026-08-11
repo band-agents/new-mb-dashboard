@@ -6,6 +6,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "./connection-card";
+import { ShopifyConnectionCard } from "./shopify-connection-card";
 import { updateClientAction } from "./actions";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
@@ -23,6 +24,7 @@ export default async function AccountPage({
   const locale = await getLocale();
 
   const adAccounts = await prisma.adAccount.findMany({ where: { clientId } });
+  const shopifyConnection = await prisma.shopifyConnection.findUnique({ where: { clientId } });
 
   return (
     <div className="max-w-3xl">
@@ -37,6 +39,13 @@ export default async function AccountPage({
           lastSyncedAt={client.metaConnection?.lastSyncedAt?.toISOString() ?? null}
           lastError={client.metaConnection?.lastError ?? null}
           error={sp.error}
+        />
+
+        <ShopifyConnectionCard
+          clientId={clientId}
+          status={shopifyConnection?.status ?? "NOT_CONNECTED"}
+          lastSyncedAt={shopifyConnection?.lastSyncedAt?.toISOString() ?? null}
+          lastError={shopifyConnection?.lastError ?? null}
         />
 
         <Card className="p-4">

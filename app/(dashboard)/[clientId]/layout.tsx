@@ -2,6 +2,7 @@ import { requireClientInScope, listClientsInScope } from "@/lib/data/scope";
 import { getClientCurrency } from "@/lib/data/currency";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { SyncBanner } from "@/components/layout/sync-banner";
 import { CurrencyProvider } from "@/components/currency/currency-provider";
 
 export default async function DashboardLayout({
@@ -34,6 +35,9 @@ export default async function DashboardLayout({
             userName={session.user.name ?? session.user.email ?? "User"}
             isLive={isLive}
           />
+          {client.metaConnection?.status === "ERROR" && (
+            <SyncBanner clientId={clientId} lastSyncedAt={client.metaConnection.lastSyncedAt?.toISOString() ?? null} />
+          )}
           <main className="flex-1 bg-background p-4 md:p-6">{children}</main>
         </div>
       </div>

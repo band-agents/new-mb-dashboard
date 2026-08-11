@@ -2,6 +2,15 @@
 // writes it into our own tables (Campaign/AdSet/Ad/Creative/InsightSnapshot),
 // exactly like the mock generator does for Demo Mode. Every page reads from
 // those tables, so once this has run once, the whole dashboard is "live".
+//
+// Data-accuracy invariant (spec §5/§10/§13): a sync either fully succeeds or
+// makes no change at all. All Meta API calls happen FIRST, entirely in
+// memory; only once every required fetch has succeeded do we touch the
+// database, and that write is one atomic transaction. A rate limit,
+// permission error, or network failure partway through never leaves the
+// client with partial/blank data masquerading as a complete sync — the
+// previous good data (or previous error state) is left untouched and the
+// failure is surfaced to the caller.
 
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/security/crypto";
@@ -14,6 +23,11 @@ import {
   getCreative,
   getInsights,
   getMe,
+  type MetaAd,
+  type MetaAdAccount,
+  type MetaAdSet,
+  type MetaCampaign,
+  type MetaCreative,
   type MetaInsight,
 } from "./client";
 
@@ -45,6 +59,19 @@ function sumActions(actions: { action_type: string; value: string }[] | undefine
   return actions
     .filter((a) => matches.some((m) => a.action_type.includes(m)))
     .reduce((sum, a) => sum + (Number(a.value) || 0), 0);
+}
+
+/** Retries once, after a short backoff, on a rate-limited response. Any other error (or a second rate limit) propagates. */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof MetaApiError && err.isRateLimited) {
+      await new Promise((r) => setTimeout(r, 2000));
+      return await fn();
+    }
+    throw err;
+  }
 }
 
 type InsightRowInput = {
@@ -89,141 +116,178 @@ export type SyncResult = {
   adCount: number;
 };
 
-/**
- * Validates the token, picks an ad account, wipes any previously-synced data
- * for this client, and pulls fresh campaigns/ad sets/ads/creatives/insights.
- * Throws MetaApiError (with a user-readable message) on failure.
- */
-export async function syncClientFromMeta(clientId: string, accessToken: string): Promise<SyncResult> {
-  const { data: accounts } = await getAdAccounts(accessToken);
+// ---------- Phase A: fetch everything from Meta, no DB writes ----------
+
+type FetchedAd = { meta: MetaAd; creative: MetaCreative | null; insights: MetaInsight[] };
+type FetchedAdSet = { meta: MetaAdSet; insights: MetaInsight[]; ads: FetchedAd[] };
+type FetchedCampaign = { meta: MetaCampaign; insights: MetaInsight[]; adSets: FetchedAdSet[] };
+type FetchedAccount = {
+  account: MetaAdAccount;
+  metaUserId: string | null;
+  accountInsights: MetaInsight[];
+  campaigns: FetchedCampaign[];
+};
+
+async function fetchAllFromMeta(accessToken: string): Promise<FetchedAccount> {
+  const { data: accounts } = await withRetry(() => getAdAccounts(accessToken));
   if (accounts.length === 0) {
     throw new MetaApiError("This token has no ad accounts to read. Ask an admin for Ads access on at least one account.", 400);
   }
   const account = accounts.find((a) => a.account_status === 1) ?? accounts[0];
-  const me = await getMe(accessToken).catch(() => null);
+  const me = await getMe(accessToken).catch(() => null); // non-critical: only used for a display label
 
   const until = new Date();
   const since = new Date(until.getTime() - SYNC_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const range = { since: isoDate(since), until: isoDate(until), timeIncrement: "1" as const };
 
-  // Wipe any previously-synced (or demo) data for this client so views don't mix sources.
-  await prisma.adAccount.deleteMany({ where: { clientId } });
+  const { data: accountInsights } = await withRetry(() => getInsights(account.id, accessToken, range));
+  const { data: campaigns } = await withRetry(() => getCampaigns(account.id, accessToken));
 
-  const adAccount = await prisma.adAccount.create({
-    data: {
-      clientId,
-      metaAccountId: account.id,
-      name: account.name,
-      currency: account.currency,
-      status: account.account_status === 1 ? "ACTIVE" : "PAUSED",
-    },
-  });
+  const fetchedCampaigns: FetchedCampaign[] = [];
+  for (const c of campaigns) {
+    const { data: campInsights } = await withRetry(() => getInsights(c.id, accessToken, range));
+    const { data: adSets } = await withRetry(() => getAdSets(c.id, accessToken));
 
-  // Account-level daily totals (drives Overview/Audiences account rollups).
-  const acctInsights = await getInsights(account.id, accessToken, range).catch(() => ({ data: [] }));
-  if (acctInsights.data.length) {
-    await prisma.insightSnapshot.createMany({
-      data: toSnapshotRows(acctInsights.data, { level: "ACCOUNT", adAccountId: adAccount.id }),
-    });
+    const fetchedAdSets: FetchedAdSet[] = [];
+    for (const as of adSets) {
+      const { data: adSetInsights } = await withRetry(() => getInsights(as.id, accessToken, range));
+      const { data: ads } = await withRetry(() => getAds(as.id, accessToken));
+
+      const fetchedAds: FetchedAd[] = [];
+      for (const a of ads) {
+        const creative = a.creative?.id ? await withRetry(() => getCreative(a.creative!.id, accessToken)).catch(() => null) : null;
+        const { data: adInsights } = await withRetry(() => getInsights(a.id, accessToken, range));
+        fetchedAds.push({ meta: a, creative, insights: adInsights });
+      }
+      fetchedAdSets.push({ meta: as, insights: adSetInsights, ads: fetchedAds });
+    }
+    fetchedCampaigns.push({ meta: c, insights: campInsights, adSets: fetchedAdSets });
   }
 
-  const { data: campaigns } = await getCampaigns(account.id, accessToken);
+  return { account, metaUserId: me?.id ?? null, accountInsights, campaigns: fetchedCampaigns };
+}
+
+// ---------- Phase B: one atomic DB write, only after Phase A fully succeeded ----------
+
+async function writeToDatabase(clientId: string, accessToken: string, fetched: FetchedAccount): Promise<SyncResult> {
+  const { account, metaUserId, accountInsights, campaigns } = fetched;
   let adCount = 0;
 
-  for (const c of campaigns) {
-    const campaign = await prisma.campaign.create({
-      data: {
-        adAccountId: adAccount.id,
-        metaCampaignId: c.id,
-        name: c.name,
-        status: mapCampaignStatus(c.status),
-        objective: mapObjective(c.objective ?? "TRAFFIC"),
-        dailyBudget: c.daily_budget ? Number(c.daily_budget) / 100 : null,
-        lifetimeBudget: c.lifetime_budget ? Number(c.lifetime_budget) / 100 : null,
-        startDate: c.start_time ? new Date(c.start_time) : new Date(),
-        endDate: c.stop_time ? new Date(c.stop_time) : null,
-      },
-    });
+  await prisma.$transaction(
+    async (tx) => {
+      // Only now — after every Meta call above has already succeeded — do we touch existing data.
+      await tx.adAccount.deleteMany({ where: { clientId } });
 
-    const campInsights = await getInsights(c.id, accessToken, range).catch(() => ({ data: [] }));
-    if (campInsights.data.length) {
-      await prisma.insightSnapshot.createMany({
-        data: toSnapshotRows(campInsights.data, { level: "CAMPAIGN", adAccountId: adAccount.id, campaignId: campaign.id }),
-      });
-    }
-
-    const { data: adSets } = await getAdSets(c.id, accessToken).catch(() => ({ data: [] as never[] }));
-    for (const as of adSets) {
-      const adSet = await prisma.adSet.create({
+      const adAccount = await tx.adAccount.create({
         data: {
-          campaignId: campaign.id,
-          metaAdSetId: as.id,
-          name: as.name,
-          status: mapCampaignStatus(as.status),
-          dailyBudget: as.daily_budget ? Number(as.daily_budget) / 100 : null,
-          targetingSummary: JSON.stringify(as.targeting ?? {}),
+          clientId,
+          metaAccountId: account.id,
+          name: account.name,
+          currency: account.currency,
+          status: account.account_status === 1 ? "ACTIVE" : "PAUSED",
         },
       });
 
-      const adSetInsights = await getInsights(as.id, accessToken, range).catch(() => ({ data: [] }));
-      if (adSetInsights.data.length) {
-        await prisma.insightSnapshot.createMany({
-          data: toSnapshotRows(adSetInsights.data, { level: "ADSET", adAccountId: adAccount.id, adSetId: adSet.id }),
+      if (accountInsights.length) {
+        await tx.insightSnapshot.createMany({
+          data: toSnapshotRows(accountInsights, { level: "ACCOUNT", adAccountId: adAccount.id }),
         });
       }
 
-      const { data: ads } = await getAds(as.id, accessToken).catch(() => ({ data: [] as never[] }));
-      for (const a of ads) {
-        const ad = await prisma.ad.create({
-          data: { adSetId: adSet.id, metaAdId: a.id, name: a.name, status: mapCampaignStatus(a.status) },
+      for (const fc of campaigns) {
+        const campaign = await tx.campaign.create({
+          data: {
+            adAccountId: adAccount.id,
+            metaCampaignId: fc.meta.id,
+            name: fc.meta.name,
+            status: mapCampaignStatus(fc.meta.status),
+            objective: mapObjective(fc.meta.objective ?? "TRAFFIC"),
+            dailyBudget: fc.meta.daily_budget ? Number(fc.meta.daily_budget) / 100 : null,
+            lifetimeBudget: fc.meta.lifetime_budget ? Number(fc.meta.lifetime_budget) / 100 : null,
+            startDate: fc.meta.start_time ? new Date(fc.meta.start_time) : new Date(),
+            endDate: fc.meta.stop_time ? new Date(fc.meta.stop_time) : null,
+          },
         });
-        adCount++;
 
-        if (a.creative?.id) {
-          const creative = await getCreative(a.creative.id, accessToken).catch(() => null);
-          if (creative) {
-            await prisma.creative.create({
-              data: {
-                adId: ad.id,
-                name: creative.name || a.name,
-                format: creative.image_url ? "IMAGE" : creative.object_type === "VIDEO" ? "VIDEO" : "IMAGE",
-                thumbnailUrl: creative.thumbnail_url || creative.image_url || "",
-                headline: creative.title || a.name,
-                body: creative.body || "",
-                callToAction: creative.call_to_action_type || "LEARN_MORE",
-              },
-            });
-          }
-        }
-
-        const adInsights = await getInsights(a.id, accessToken, range).catch(() => ({ data: [] }));
-        if (adInsights.data.length) {
-          await prisma.insightSnapshot.createMany({
-            data: toSnapshotRows(adInsights.data, { level: "AD", adAccountId: adAccount.id, adId: ad.id }),
+        if (fc.insights.length) {
+          await tx.insightSnapshot.createMany({
+            data: toSnapshotRows(fc.insights, { level: "CAMPAIGN", adAccountId: adAccount.id, campaignId: campaign.id }),
           });
         }
-      }
-    }
-  }
 
-  await prisma.metaConnection.upsert({
-    where: { clientId },
-    update: {
-      status: "CONNECTED",
-      accessTokenEnc: encryptSecret(accessToken),
-      tokenExpiresAt: null,
-      metaUserId: me?.id ?? null,
-      lastSyncedAt: new Date(),
-      lastError: null,
+        for (const fas of fc.adSets) {
+          const adSet = await tx.adSet.create({
+            data: {
+              campaignId: campaign.id,
+              metaAdSetId: fas.meta.id,
+              name: fas.meta.name,
+              status: mapCampaignStatus(fas.meta.status),
+              dailyBudget: fas.meta.daily_budget ? Number(fas.meta.daily_budget) / 100 : null,
+              targetingSummary: JSON.stringify(fas.meta.targeting ?? {}),
+            },
+          });
+
+          if (fas.insights.length) {
+            await tx.insightSnapshot.createMany({
+              data: toSnapshotRows(fas.insights, { level: "ADSET", adAccountId: adAccount.id, adSetId: adSet.id }),
+            });
+          }
+
+          for (const fad of fas.ads) {
+            const ad = await tx.ad.create({
+              data: { adSetId: adSet.id, metaAdId: fad.meta.id, name: fad.meta.name, status: mapCampaignStatus(fad.meta.status) },
+            });
+            adCount++;
+
+            if (fad.creative) {
+              await tx.creative.create({
+                data: {
+                  adId: ad.id,
+                  name: fad.creative.name || fad.meta.name,
+                  format: fad.creative.image_url ? "IMAGE" : fad.creative.object_type === "VIDEO" ? "VIDEO" : "IMAGE",
+                  thumbnailUrl: fad.creative.thumbnail_url || fad.creative.image_url || "",
+                  headline: fad.creative.title || fad.meta.name,
+                  body: fad.creative.body || "",
+                  callToAction: fad.creative.call_to_action_type || "LEARN_MORE",
+                },
+              });
+            }
+
+            if (fad.insights.length) {
+              await tx.insightSnapshot.createMany({
+                data: toSnapshotRows(fad.insights, { level: "AD", adAccountId: adAccount.id, adId: ad.id }),
+              });
+            }
+          }
+        }
+      }
+
+      await tx.metaConnection.upsert({
+        where: { clientId },
+        update: {
+          status: "CONNECTED",
+          accessTokenEnc: encryptSecret(accessToken),
+          tokenExpiresAt: null,
+          metaUserId,
+          lastSyncedAt: new Date(),
+          lastError: null,
+        },
+        create: { clientId, status: "CONNECTED", accessTokenEnc: encryptSecret(accessToken), metaUserId, lastSyncedAt: new Date() },
+      });
     },
-    create: {
-      clientId,
-      status: "CONNECTED",
-      accessTokenEnc: encryptSecret(accessToken),
-      metaUserId: me?.id ?? null,
-      lastSyncedAt: new Date(),
-    },
-  });
+    { timeout: 30_000 }
+  );
 
   return { adAccountName: account.name, campaignCount: campaigns.length, adCount };
+}
+
+/**
+ * Validates the token, fetches the full campaign/ad set/ad/creative/insights
+ * tree from Meta, and only then replaces the client's data in one atomic
+ * transaction. Throws MetaApiError (with a user-readable message) on
+ * failure — the database is left exactly as it was before the call.
+ */
+export async function syncClientFromMeta(clientId: string, accessToken: string): Promise<SyncResult> {
+  const fetched = await fetchAllFromMeta(accessToken);
+  return writeToDatabase(clientId, accessToken, fetched);
 }

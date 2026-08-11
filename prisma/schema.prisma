@@ -55,10 +55,12 @@ model Client {
   avatarHue Int      @default(210) // deterministic color for avatar chip
   createdAt DateTime @default(now())
 
-  metaConnection MetaConnection?
-  adAccounts     AdAccount[]
-  reportConfigs  ReportConfig[]
-  alerts         Alert[]
+  metaConnection    MetaConnection?
+  adAccounts        AdAccount[]
+  reportConfigs     ReportConfig[]
+  alerts            Alert[]
+  shopifyConnection ShopifyConnection?
+  shopifySnapshots  ShopifyOrderSnapshot[]
 
   @@index([organizationId])
 }
@@ -212,6 +214,50 @@ model InsightSnapshot {
   @@index([adSetId, date])
   @@index([adId, date])
   @@index([adAccountId, date])
+}
+
+// ---------- Shopify connection (server-side only; tokens encrypted at rest) ----------
+
+model ShopifyConnection {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status         String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONNECTED | ERROR
+  shopDomain     String? // e.g. my-store.myshopify.com
+  accessTokenEnc String? // AES-256-GCM ciphertext, never sent to the client
+  storeName      String?
+  storeCurrency  String?
+  lastSyncedAt   DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// One row per day. Aggregated from Shopify's Orders API — see lib/shopify/sync.ts
+// for exactly how gross/net/discounts/refunds/tax/shipping are derived per order.
+model ShopifyOrderSnapshot {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  date DateTime
+
+  orderCount       Int   @default(0)
+  grossSales       Float @default(0) // sum of line-item prices before discounts/refunds/tax/shipping
+  discounts        Float @default(0)
+  refunds          Float @default(0)
+  taxes            Float @default(0)
+  shipping         Float @default(0)
+  netSales         Float @default(0) // gross - discounts - refunds
+  totalSales       Float @default(0) // net + taxes + shipping (what the customer actually paid)
+  newCustomers     Int   @default(0)
+  returningCustomers Int @default(0)
+
+  currency String @default("USD") // the Shopify store's currency (may differ from the Meta ad account's)
+  source   String @default("LIVE") // LIVE | DEMO
+
+  @@index([clientId, date])
 }
 
 model ReportConfig {
