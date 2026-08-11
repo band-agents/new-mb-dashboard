@@ -74,6 +74,27 @@ export function getAds(adSetId: string, accessToken: string) {
   });
 }
 
+export type MetaCreative = {
+  id: string;
+  name?: string;
+  thumbnail_url?: string;
+  image_url?: string;
+  object_type?: string;
+  title?: string;
+  body?: string;
+  call_to_action_type?: string;
+};
+export function getCreative(creativeId: string, accessToken: string) {
+  return metaFetch<MetaCreative>(`/${creativeId}`, accessToken, {
+    fields: "name,thumbnail_url,image_url,object_type,title,body,call_to_action_type",
+  });
+}
+
+export type MetaUser = { id: string; name?: string };
+export function getMe(accessToken: string) {
+  return metaFetch<MetaUser>("/me", accessToken, { fields: "id,name" });
+}
+
 export type MetaInsight = {
   date_start: string;
   spend: string;
