@@ -10,11 +10,10 @@ import { saveTikTokAppConfigAction, clearTikTokAppConfigAction } from "./actions
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { TikTokAppConfigSummary } from "@/lib/tiktok/appConfig";
 
-// Lets an org owner enter TikTok Developer App credentials from the
+// "TikTok Ads connection" card — lets an org owner enter TikTok Developer
+// App credentials (Client ID / Client Secret / Redirect URI) from the
 // dashboard instead of only server env vars (see lib/tiktok/appConfig.ts).
-// This is app-level config shared by every client the agency manages —
-// distinct from TikTokConnectionCard, which connects one client's own
-// advertiser account using whatever app is configured here.
+// This is app-level config shared by every client the agency manages.
 //
 // The Client Secret input is a plain uncontrolled field read only at
 // submit time (never mirrored into component state, never logged) and is

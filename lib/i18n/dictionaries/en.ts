@@ -396,7 +396,7 @@ const en = {
     tiktokConnectedToAdvertiser: 'Connected to "{{advertiser}}" — pulled {{count}} campaigns.',
     tiktokRefreshedCount: "Refreshed — {{count}} campaigns synced.",
     advertiserId: "Advertiser ID",
-    tiktokAppTitle: "TikTok Developer App",
+    tiktokAppTitle: "TikTok Ads connection",
     tiktokAppDesc: "Shared across every client in your organization — this is your agency's TikTok API app, not one client's ad account.",
     tiktokAppConfiguredDb: "Configured from the dashboard",
     tiktokAppConfiguredEnv: "Configured via server environment variables",

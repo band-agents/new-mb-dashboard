@@ -397,7 +397,7 @@ const ar: Dictionary = {
     tiktokConnectedToAdvertiser: 'تم الربط بـ "{{advertiser}}" — تم سحب {{count}} حملة.',
     tiktokRefreshedCount: "تم التحديث — تمت مزامنة {{count}} حملة.",
     advertiserId: "معرّف المعلن",
-    tiktokAppTitle: "تطبيق TikTok للمطورين",
+    tiktokAppTitle: "اتصال إعلانات TikTok",
     tiktokAppDesc: "مشترك بين جميع عملاء مؤسستك — هذا تطبيق API الخاص بوكالتك على TikTok، وليس حساب معلن تابعًا لعميل واحد.",
     tiktokAppConfiguredDb: "تم الإعداد من لوحة البيانات",
     tiktokAppConfiguredEnv: "تم الإعداد عبر متغيرات بيئة الخادم",

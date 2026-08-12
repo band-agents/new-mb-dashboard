@@ -2,12 +2,11 @@ import { headers } from "next/headers";
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
 import { isMetaConfigured, isShopifyConfigured } from "@/lib/env";
-import { getTikTokAppConfigSummary, isTikTokConfiguredForOrg } from "@/lib/tiktok/appConfig";
+import { getTikTokAppConfigSummary } from "@/lib/tiktok/appConfig";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "../account/connection-card";
 import { ShopifyConnectionCard } from "../account/shopify-connection-card";
-import { TikTokConnectionCard } from "../account/tiktok-connection-card";
 import { TikTokAppConfigCard } from "./tiktok-app-config-card";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
@@ -18,6 +17,10 @@ import { t } from "@/lib/i18n/t";
 // Connect/Reconnect/Disconnect/Refresh logic lives in one place, not
 // duplicated per page. All three OAuth start/callback routes redirect back
 // here (see app/api/{meta,shopify,tiktok}/oauth/{start,callback}).
+//
+// TikTok's own OAuth start/callback routes and lib/tiktok/appConfig.ts are
+// untouched by this file — only which card renders their configured state
+// changed here.
 export default async function ConnectionsPage({
   params,
   searchParams,
@@ -40,15 +43,8 @@ export default async function ConnectionsPage({
 
   const adAccounts = await prisma.adAccount.findMany({ where: { clientId } });
   const shopifyConnection = await prisma.shopifyConnection.findUnique({ where: { clientId } });
-  const tiktokConnection = await prisma.tikTokConnection.findUnique({ where: { clientId } });
-  const pendingAdvertisers: { advertiser_id: string; advertiser_name: string }[] = tiktokConnection?.pendingAdvertisersJson
-    ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
-    : [];
 
-  const [tiktokAppSummary, tiktokAppConfigured] = await Promise.all([
-    getTikTokAppConfigSummary(session.user.organizationId),
-    isTikTokConfiguredForOrg(session.user.organizationId),
-  ]);
+  const tiktokAppSummary = await getTikTokAppConfigSummary(session.user.organizationId);
 
   // Best-effort default the owner can start from when entering the
   // Redirect URI for the first time — must match the actual deployment
@@ -80,18 +76,6 @@ export default async function ConnectionsPage({
           isOwner={session.user.role === "OWNER"}
           summary={tiktokAppSummary}
           suggestedRedirectUri={suggestedRedirectUri}
-        />
-
-        <TikTokConnectionCard
-          clientId={clientId}
-          status={tiktokConnection?.status ?? "NOT_CONNECTED"}
-          isTikTokConfigured={tiktokAppConfigured}
-          advertiserName={tiktokConnection?.advertiserName ?? null}
-          advertiserCurrency={tiktokConnection?.advertiserCurrency ?? null}
-          pendingAdvertisers={pendingAdvertisers}
-          lastSyncedAt={tiktokConnection?.lastSyncedAt?.toISOString() ?? null}
-          lastError={tiktokConnection?.lastError ?? null}
-          error={sp.tiktokError}
         />
 
         <ShopifyConnectionCard
