@@ -94,7 +94,7 @@ export function TikTokConnectionCard({
         )}
       </div>
 
-      {error && ERROR_KEY[error] && error !== "not_configured" && (
+      {error && ERROR_KEY[error] && (
         <p className="mt-3 rounded-md bg-negative-soft px-3 py-2 text-xs text-negative">{t(ERROR_KEY[error])}</p>
       )}
       {lastError && !error && !result && (
@@ -139,10 +139,14 @@ export function TikTokConnectionCard({
         </>
       ) : (
         <div className="mt-4">
-          <Button size="sm" variant="outline" asChild disabled={!isTikTokConfigured}>
+          {/* Always a real, clickable link to the real OAuth-start route — never
+              disabled client-side. If TikTok isn't configured, the server
+              redirects back with ?tiktokError=not_configured and the banner
+              above shows the real reason; we don't pre-judge that here. */}
+          <Button size="sm" variant="outline" asChild>
             <a href={`/api/tiktok/oauth/start?clientId=${clientId}`}>{t("account.tiktokConnect")}</a>
           </Button>
-          {!isTikTokConfigured && <p className="mt-2 text-xs text-muted-foreground">{t("account.tiktokOauthRequires")}</p>}
+          {!isTikTokConfigured && !error && <p className="mt-2 text-xs text-muted-foreground">{t("account.tiktokOauthRequires")}</p>}
         </div>
       )}
 
