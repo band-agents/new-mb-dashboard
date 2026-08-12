@@ -1,12 +1,20 @@
 // Server-only: thin wrapper around the Shopify Admin REST API.
-// Auth model: a merchant creates a "custom app" in their Shopify admin
-// (Settings -> Apps -> Develop apps), grants it read-only order/customer
-// scopes, and pastes the generated Admin API access token here — mirrors
-// the Meta paste-token flow in lib/meta/. No Shopify Partner OAuth app
-// needed. The token is encrypted at rest (lib/security/crypto.ts) and
-// never sent to the browser.
+//
+// Auth model: this client just takes whatever Admin API access token it's
+// given and calls the REST API with it — it doesn't care how the token was
+// obtained. Two flows produce one (see lib/shopify/oauth.ts for the OAuth
+// path, and account/actions.ts's connectShopifyWithTokenAction for the
+// paste-a-token path): Shopify deprecated the old "API credentials" tab
+// that let a merchant copy a static token straight out of their admin, so
+// OAuth (Authorization Code Grant, verified current against Shopify's
+// 2026 docs) is now the only flow that reliably works for a brand-new
+// custom app; the paste-token path is kept only for stores that already
+// have a still-valid legacy token. The token is encrypted at rest
+// (lib/security/crypto.ts) and never sent to the browser.
 
-const API_VERSION = "2024-10";
+import { env } from "@/lib/env";
+
+const API_VERSION = env.shopify.apiVersion;
 
 export class ShopifyApiError extends Error {
   constructor(

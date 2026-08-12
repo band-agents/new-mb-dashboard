@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, RefreshCw, ShoppingBag, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, RefreshCw, ShoppingBag, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,14 @@ const ERROR_KEY: Record<string, string> = {
   sync_failed: "account.shopifySyncFailed",
 };
 
+// Shopify retired the old "API credentials" tab that used to let a
+// merchant copy a static Admin API access token straight out of their
+// store admin — new custom apps no longer produce one that way. OAuth
+// (Authorization Code Grant, verified current against Shopify's own 2026
+// docs — see lib/shopify/oauth.ts) is the only flow guaranteed to work for
+// a client connecting today, so it's the primary/first path here. The
+// paste-a-token flow is kept as a collapsed fallback for stores that
+// already have a still-valid legacy token — never as the default option.
 export function ShopifyConnectionCard({
   clientId,
   status,
@@ -34,6 +42,7 @@ export function ShopifyConnectionCard({
   const [pending, startTransition] = useTransition();
   const [domain, setDomain] = useState("");
   const [token, setToken] = useState("");
+  const [showLegacyToken, setShowLegacyToken] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const { t, intlTag } = useLocale();
 
@@ -128,34 +137,7 @@ export function ShopifyConnectionCard({
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs text-muted-foreground">
-              {t("account.shopifyHelpPrefix")}{" "}
-              <code className="rounded bg-muted px-1 py-0.5">{t("account.shopifyHelpScopes")}</code>{" "}
-              {t("account.shopifyHelpSuffix")}
-            </p>
-            <Label htmlFor="shop-token">{t("account.shopifyTokenLabel")}</Label>
-            <div className="mt-1.5 flex gap-2">
-              <Input
-                id="shop-token"
-                type="password"
-                placeholder="shpat_..."
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                disabled={pending}
-                className="text-xs"
-              />
-              <Button size="sm" disabled={pending || !domain.trim() || !token.trim()} onClick={submit}>
-                {pending ? t("common.connecting") : t("common.connect")}
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> {t("account.shopifyOr")} <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <div>
-            <Button size="sm" variant="outline" asChild disabled={!isShopifyConfigured || !oauthHref}>
+            <Button size="sm" asChild disabled={!isShopifyConfigured || !oauthHref}>
               <a href={oauthHref ?? "#"} aria-disabled={!isShopifyConfigured || !oauthHref}>
                 {t("account.shopifyConnectOauth")}
               </a>
@@ -165,6 +147,38 @@ export function ShopifyConnectionCard({
             ) : !domain.trim() ? (
               <p className="mt-2 text-xs text-muted-foreground">{t("account.shopifyInvalidDomain")}</p>
             ) : null}
+          </div>
+
+          <div className="pt-1">
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setShowLegacyToken((v) => !v)}
+            >
+              {showLegacyToken ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
+              {t("account.shopifyLegacyTokenToggle")}
+            </button>
+
+            {showLegacyToken && (
+              <div className="mt-2 space-y-2 rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">{t("account.shopifyLegacyTokenDesc")}</p>
+                <Label htmlFor="shop-token">{t("account.shopifyTokenLabel")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="shop-token"
+                    type="password"
+                    placeholder="shpat_..."
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    disabled={pending}
+                    className="text-xs"
+                  />
+                  <Button size="sm" variant="outline" disabled={pending || !domain.trim() || !token.trim()} onClick={submit}>
+                    {pending ? t("common.connecting") : t("common.connect")}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

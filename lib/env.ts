@@ -14,7 +14,11 @@ export const env = {
   shopify: {
     clientId: process.env.SHOPIFY_CLIENT_ID ?? "",
     clientSecret: process.env.SHOPIFY_CLIENT_SECRET ?? "",
-    apiVersion: process.env.SHOPIFY_API_VERSION ?? "2024-10",
+    // Shopify releases a new quarterly version (YYYY-01/04/07/10) with a
+    // ~12-month support window each; this default must be bumped forward
+    // periodically or Admin API calls start failing once the pinned
+    // version sunsets. 2026-07 confirmed current as of this writing.
+    apiVersion: process.env.SHOPIFY_API_VERSION ?? "2026-07",
     redirectUri: process.env.SHOPIFY_REDIRECT_URI ?? "",
     scopes: process.env.SHOPIFY_SCOPES ?? "read_orders,read_customers",
   },
