@@ -7,11 +7,13 @@ import { ArrowLeft, BarChart3, Menu, X } from "lucide-react";
 import { NAV_ITEMS } from "./nav-items";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePlatform } from "@/components/platforms/platform-provider";
 
 export function Sidebar({ clientId }: { clientId: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { t } = useLocale();
+  const { platform } = usePlatform();
 
   const items = NAV_ITEMS.map((item) => ({
     ...item,
@@ -65,7 +67,7 @@ export function Sidebar({ clientId }: { clientId: string }) {
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    {t(`nav.${item.labelKey}`)}
+                    {item.labelKey === "adSets" && platform === "TIKTOK" ? t("nav.adSetsTikTok") : t(`nav.${item.labelKey}`)}
                   </Link>
                 </li>
               );

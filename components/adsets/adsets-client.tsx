@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/currency-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePlatform } from "@/components/platforms/platform-provider";
 
 type AdSetRow = {
   id: string;
@@ -38,13 +39,15 @@ const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
 export function AdSetsClient({ clientId, rows }: { clientId: string; rows: AdSetRow[] }) {
   const currency = useCurrency();
   const { intlTag: locale, t } = useLocale();
+  const { platform } = usePlatform();
   const money = (v: number) => formatCurrency(v, currency, locale);
   const num = (v: number) => formatNumber(v, locale);
+  const adSetLabel = platform === "TIKTOK" ? t("adSets.nameTikTok") : t("adSets.name");
 
   const columns: ColumnDef<AdSetRow>[] = [
     {
       accessorKey: "name",
-      header: t("adSets.name"),
+      header: adSetLabel,
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {

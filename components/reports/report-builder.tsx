@@ -40,10 +40,12 @@ export function ReportBuilder({
   clientId,
   clientName,
   campaigns,
+  platform,
 }: {
   clientId: string;
   clientName: string;
   campaigns: { id: string; name: string }[];
+  platform: "META" | "TIKTOK";
 }) {
   const [range, setRange] = useState<DateRangePreset>("last_30_days");
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set(campaigns.map((c) => c.id)));
@@ -67,6 +69,7 @@ export function ReportBuilder({
           start: start.toISOString(),
           end: end.toISOString(),
           campaignIds: Array.from(selectedCampaigns),
+          platform,
         }),
       });
       const data = await res.json();

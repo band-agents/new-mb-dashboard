@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { PlatformSwitcher } from "@/components/platforms/platform-switcher";
 
 type ClientSummary = { id: string; name: string; avatarHue: number; isLive: boolean };
 
@@ -53,40 +54,44 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur ps-14 md:ps-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-surface-muted cursor-pointer">
-            <InitialsAvatar name={activeClient.name} hue={activeClient.avatarHue} size={22} />
-            <span className="max-w-[10rem] truncate">{activeClient.name}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[16rem]">
-          <DropdownMenuLabel>{t("clients.yourClients")}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {clients.map((c) => (
-            <DropdownMenuItem
-              key={c.id}
-              onSelect={() => router.push(`/${c.id}/overview`)}
-              className="justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <InitialsAvatar name={c.name} hue={c.avatarHue} size={20} />
-                {c.name}
-              </span>
-              {c.isLive ? (
-                <Badge variant="positive">{t("common.live")}</Badge>
-              ) : (
-                <Badge variant="neutral">{t("common.demo")}</Badge>
-              )}
+      <div className="flex min-w-0 items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-surface-muted cursor-pointer">
+              <InitialsAvatar name={activeClient.name} hue={activeClient.avatarHue} size={22} />
+              <span className="max-w-[10rem] truncate">{activeClient.name}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[16rem]">
+            <DropdownMenuLabel>{t("clients.yourClients")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {clients.map((c) => (
+              <DropdownMenuItem
+                key={c.id}
+                onSelect={() => router.push(`/${c.id}/overview`)}
+                className="justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <InitialsAvatar name={c.name} hue={c.avatarHue} size={20} />
+                  {c.name}
+                </span>
+                {c.isLive ? (
+                  <Badge variant="positive">{t("common.live")}</Badge>
+                ) : (
+                  <Badge variant="neutral">{t("common.demo")}</Badge>
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/clients">{t("common.manageClients")}</Link>
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/clients">{t("common.manageClients")}</Link>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <PlatformSwitcher />
+      </div>
 
       <div className="flex items-center gap-2">
         {isLive ? (

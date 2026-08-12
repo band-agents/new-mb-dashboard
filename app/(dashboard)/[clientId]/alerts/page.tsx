@@ -8,11 +8,29 @@ import { EmptyState } from "@/components/states/empty-error";
 import { Sparkles, ShieldCheck } from "lucide-react";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
+import { getPlatform } from "@/lib/platforms/getPlatform";
 
 export default async function AlertsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   await requireClientInScope(clientId);
+  const locale = await getLocale();
+  const platform = await getPlatform();
 
+  return (
+    <div>
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "alerts.title")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "alerts.subtitle")}</p>
+
+      {platform !== "META" ? (
+        <EmptyState title={t(locale, "alerts.notAvailableForPlatform")} description={t(locale, "alerts.notAvailableForPlatformDesc")} />
+      ) : (
+        <AlertsData clientId={clientId} locale={locale} />
+      )}
+    </div>
+  );
+}
+
+async function AlertsData({ clientId, locale }: { clientId: string; locale: Awaited<ReturnType<typeof getLocale>> }) {
   const alerts = await generateAlerts(clientId);
   const { start, end } = resolvePreset("last_30_days");
   const insights = await generateOverviewInsights({ clientId, start, end, compare: "previous_period" });
@@ -20,13 +38,9 @@ export default async function AlertsPage({ params }: { params: Promise<{ clientI
   const critical = alerts.filter((a) => a.severity === "CRITICAL");
   const warning = alerts.filter((a) => a.severity === "WARNING");
   const info = alerts.filter((a) => a.severity === "INFO");
-  const locale = await getLocale();
 
   return (
-    <div>
-      <h1 className="mb-1 text-xl font-semibold">{t(locale, "alerts.title")}</h1>
-      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "alerts.subtitle")}</p>
-
+    <>
       {alerts.length === 0 ? (
         <div className="mb-6">
           <EmptyState
@@ -62,6 +76,6 @@ export default async function AlertsPage({ params }: { params: Promise<{ clientI
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

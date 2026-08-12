@@ -17,6 +17,7 @@ import { Sparkles } from "lucide-react";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
 import { intlTag } from "@/lib/i18n/config";
+import { getPlatform } from "@/lib/platforms/getPlatform";
 
 const STATUS_VARIANT: Record<string, "positive" | "warning" | "neutral"> = {
   ACTIVE: "positive",
@@ -39,16 +40,18 @@ export default async function CampaignDetailPage({
   const compare = (sp.compare as ComparePreset) || "previous_period";
   const { start, end } = resolvePreset(range);
   const locale = await getLocale();
-  const currency = await getClientCurrency(clientId);
+  const platform = await getPlatform();
+  const singlePlatform = platform === "ALL" ? "META" : platform;
+  const currency = await getClientCurrency(clientId, singlePlatform);
   const tag = intlTag(locale);
   const money = (v: number) => formatCurrency(v, currency, tag);
   const num = (v: number) => formatNumber(v, tag);
 
-  const detail = await getCampaignDetail({ clientId, campaignId, start, end });
+  const detail = await getCampaignDetail({ clientId, campaignId, start, end, platform: singlePlatform });
   if (!detail) notFound();
   const { campaign, totals, series, placementBreakdown, adSetBreakdown, creativeBreakdown } = detail;
 
-  const insights = await generateCampaignInsights({ clientId, campaignId, start, end, compare });
+  const insights = singlePlatform === "META" ? await generateCampaignInsights({ clientId, campaignId, start, end, compare }) : [];
 
   return (
     <div>
@@ -96,21 +99,23 @@ export default async function CampaignDetailPage({
             <TrendChart title={t(locale, "kpi.conversions")} data={series} dataKey="conversions" format="number" color="var(--color-chart-3)" />
           </div>
 
-          <div className="mt-6">
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-brand" />
-              <h2 className="text-sm font-semibold">{t(locale, "overview.aiInsights")}</h2>
-            </div>
-            {insights.length === 0 ? (
-              <EmptyState title={t(locale, "overview.noNotableChanges")} description={t(locale, "overview.noNotableChangesDesc")} />
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {insights.map((i) => (
-                  <InsightCard key={i.id} insight={i} />
-                ))}
+          {singlePlatform === "META" && (
+            <div className="mt-6">
+              <div className="mb-2 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-brand" />
+                <h2 className="text-sm font-semibold">{t(locale, "overview.aiInsights")}</h2>
               </div>
-            )}
-          </div>
+              {insights.length === 0 ? (
+                <EmptyState title={t(locale, "overview.noNotableChanges")} description={t(locale, "overview.noNotableChangesDesc")} />
+              ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {insights.map((i) => (
+                    <InsightCard key={i.id} insight={i} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="p-4">
@@ -142,14 +147,14 @@ export default async function CampaignDetailPage({
             </Card>
 
             <Card className="p-4">
-              <h3 className="mb-3 text-sm font-semibold">{t(locale, "nav.adSets")}</h3>
+              <h3 className="mb-3 text-sm font-semibold">{t(locale, singlePlatform === "TIKTOK" ? "nav.adSetsTikTok" : "nav.adSets")}</h3>
               {adSetBreakdown.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
               ) : (
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="pb-2 font-medium">{t(locale, "adSets.name")}</th>
+                      <th className="pb-2 font-medium">{t(locale, singlePlatform === "TIKTOK" ? "adSets.nameTikTok" : "adSets.name")}</th>
                       <th className="pb-2 font-medium">{t(locale, "kpi.spend")}</th>
                       <th className="pb-2 font-medium">{t(locale, "kpi.conversions")}</th>
                       <th className="pb-2 font-medium">{t(locale, "kpi.roas")}</th>
