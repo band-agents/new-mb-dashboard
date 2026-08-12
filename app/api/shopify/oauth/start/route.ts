@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { requireClientInScope } from "@/lib/data/scope";
 import { assertValidShopDomain, buildAuthorizationUrl } from "@/lib/shopify/oauth";
-import { isShopifyConfigured } from "@/lib/env";
+import { getShopifyAppCredentials } from "@/lib/shopify/appConfig";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -10,9 +10,10 @@ export async function GET(req: Request) {
   const shopInput = url.searchParams.get("shop");
   if (!clientId || !shopInput) return NextResponse.json({ error: "Missing clientId or shop" }, { status: 400 });
 
-  await requireClientInScope(clientId);
+  const { session } = await requireClientInScope(clientId);
 
-  if (!isShopifyConfigured()) {
+  const creds = await getShopifyAppCredentials(session.user.organizationId);
+  if (!creds) {
     return NextResponse.redirect(new URL(`/${clientId}/connections?shopifyError=not_configured`, req.url));
   }
 
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
   // nonce protects against CSRF — verified against the cookie on callback, per Shopify's OAuth guide.
   const nonce = crypto.randomBytes(16).toString("hex");
   const state = `${clientId}.${nonce}`;
-  const authUrl = buildAuthorizationUrl(shop, state);
+  const authUrl = buildAuthorizationUrl(shop, state, creds);
 
   const res = NextResponse.redirect(authUrl);
   res.cookies.set("shopify_oauth_nonce", nonce, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/" });

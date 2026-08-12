@@ -21,9 +21,10 @@ model Organization {
   name      String
   createdAt DateTime @default(now())
 
-  users           User[]
-  clients         Client[]
-  tiktokAppConfig TikTokAppConfig?
+  users            User[]
+  clients          Client[]
+  tiktokAppConfig  TikTokAppConfig?
+  shopifyAppConfig ShopifyAppConfig?
 }
 
 model User {
@@ -125,6 +126,24 @@ model TikTokConnection {
 // clientSecretEnc is AES-256-GCM ciphertext and is never sent to the
 // client, same convention as every accessTokenEnc column in this schema.
 model TikTokAppConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  clientSecretEnc String
+  redirectUri     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Per-organization Shopify Partner/Dev Dashboard app credentials, entered
+// from the dashboard's Connections page — mirrors TikTokAppConfig exactly
+// (see lib/shopify/appConfig.ts). clientId is plaintext (not secret —
+// Shopify's OAuth redirect puts it in the browser URL too);
+// clientSecretEnc is AES-256-GCM ciphertext.
+model ShopifyAppConfig {
   id             String       @id @default(cuid())
   organizationId String       @unique
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

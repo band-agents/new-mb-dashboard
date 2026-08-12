@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireClientInScope } from "@/lib/data/scope";
 import { assertValidShopDomain, exchangeCodeForToken, verifyCallbackHmac } from "@/lib/shopify/oauth";
+import { getShopifyAppCredentials } from "@/lib/shopify/appConfig";
 import { syncClientFromShopify } from "@/lib/shopify/sync";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   const [clientId, nonce] = (state ?? "").split(".");
   if (!clientId) return NextResponse.json({ error: "Missing state" }, { status: 400 });
 
-  const { client } = await requireClientInScope(clientId);
+  const { client, session } = await requireClientInScope(clientId);
 
   async function fail(message: string, redirectError: string) {
     await prisma.shopifyConnection.upsert({
@@ -35,7 +36,15 @@ export async function GET(req: Request) {
     return fail("Invalid shop domain returned by Shopify.", "oauth_failed");
   }
 
-  if (!verifyCallbackHmac(url.searchParams)) {
+  const creds = await getShopifyAppCredentials(session.user.organizationId);
+  if (!creds) {
+    // Defensive only — /api/shopify/oauth/start already refuses to build an
+    // authorization URL without credentials, so Shopify shouldn't be able
+    // to reach this callback in that state.
+    return fail("Shopify credentials were removed before this authorization could complete. Please reconnect.", "not_configured");
+  }
+
+  if (!verifyCallbackHmac(url.searchParams, creds.clientSecret)) {
     return fail("Could not verify this request came from Shopify (HMAC check failed).", "oauth_failed");
   }
 
@@ -46,7 +55,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { accessToken } = await exchangeCodeForToken(shop, code);
+    const { accessToken } = await exchangeCodeForToken(shop, code, creds);
     await syncClientFromShopify(client.id, shop, accessToken);
     const res = NextResponse.redirect(new URL(`/${client.id}/connections?shopifyConnected=1`, req.url));
     res.cookies.delete("shopify_oauth_nonce");

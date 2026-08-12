@@ -1,23 +1,26 @@
 import { headers } from "next/headers";
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
-import { isMetaConfigured, isShopifyConfigured } from "@/lib/env";
+import { isMetaConfigured } from "@/lib/env";
 import { getTikTokAppConfigSummary, isTikTokConfiguredForOrg } from "@/lib/tiktok/appConfig";
+import { getShopifyAppConfigSummary, isShopifyConfiguredForOrg } from "@/lib/shopify/appConfig";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "../account/connection-card";
 import { ShopifyConnectionCard } from "../account/shopify-connection-card";
 import { TikTokAppConfigCard } from "./tiktok-app-config-card";
 import { TikTokConnectionCard } from "./tiktok-connection-card";
+import { ShopifyAppConfigCard } from "./shopify-app-config-card";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
 
 // Dedicated hub for all data-source connections (Meta, TikTok, Shopify).
-// TikTok is two cards on purpose: TikTokAppConfigCard is app-level
-// (Client ID/Secret/Redirect URI — entered once by the org owner, never by
-// a client) and TikTokConnectionCard is per-client, OAuth-only (the client
-// only ever sees "Connect TikTok Ads" and, if applicable, a list of their
-// own advertiser accounts to pick from — never a credential field).
+// TikTok and Shopify are each two cards on purpose: the "...Developer App"
+// card is app-level (Client ID/Secret/Redirect URI — entered once by the
+// org owner, never by a client) and the "...connection" card is per-client,
+// OAuth-only (the client only ever sees a Connect button and, if
+// applicable, a list of their own accounts to pick from — never a
+// credential field).
 export default async function ConnectionsPage({
   params,
   searchParams,
@@ -45,20 +48,23 @@ export default async function ConnectionsPage({
     ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
     : [];
 
-  const [tiktokAppSummary, tiktokAppConfigured] = await Promise.all([
+  const [tiktokAppSummary, tiktokAppConfigured, shopifyAppSummary, shopifyAppConfigured] = await Promise.all([
     getTikTokAppConfigSummary(session.user.organizationId),
     isTikTokConfiguredForOrg(session.user.organizationId),
+    getShopifyAppConfigSummary(session.user.organizationId),
+    isShopifyConfiguredForOrg(session.user.organizationId),
   ]);
 
   // Best-effort default the owner can start from when entering the
   // Redirect URI for the first time — must match the actual deployment
-  // origin (the OAuth callback route lives at exactly this path), so it's
-  // derived from the real incoming request rather than a possibly-stale
-  // env var.
+  // origin (each platform's OAuth callback route lives at exactly this
+  // path), so it's derived from the real incoming request rather than a
+  // possibly-stale env var.
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
   const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const suggestedRedirectUri = `${proto}://${host}/api/tiktok/oauth/callback`;
+  const suggestedTikTokRedirectUri = `${proto}://${host}/api/tiktok/oauth/callback`;
+  const suggestedShopifyRedirectUri = `${proto}://${host}/api/shopify/oauth/callback`;
 
   return (
     <div className="max-w-3xl">
@@ -79,7 +85,7 @@ export default async function ConnectionsPage({
           clientId={clientId}
           isOwner={session.user.role === "OWNER"}
           summary={tiktokAppSummary}
-          suggestedRedirectUri={suggestedRedirectUri}
+          suggestedRedirectUri={suggestedTikTokRedirectUri}
         />
 
         <TikTokConnectionCard
@@ -94,10 +100,17 @@ export default async function ConnectionsPage({
           error={sp.tiktokError}
         />
 
+        <ShopifyAppConfigCard
+          clientId={clientId}
+          isOwner={session.user.role === "OWNER"}
+          summary={shopifyAppSummary}
+          suggestedRedirectUri={suggestedShopifyRedirectUri}
+        />
+
         <ShopifyConnectionCard
           clientId={clientId}
           status={shopifyConnection?.status ?? "NOT_CONNECTED"}
-          isShopifyConfigured={isShopifyConfigured()}
+          isShopifyConfigured={shopifyAppConfigured}
           lastSyncedAt={shopifyConnection?.lastSyncedAt?.toISOString() ?? null}
           lastError={shopifyConnection?.lastError ?? null}
           error={sp.shopifyError}

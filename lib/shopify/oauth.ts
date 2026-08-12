@@ -1,15 +1,25 @@
-// Server-only: Shopify OAuth (Partner Dashboard app) flow.
+// Server-only: Shopify OAuth (Partner/Dev Dashboard app) flow.
 // Docs: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
+// Verified current against Shopify's 2026 docs param-for-param (see
+// app/(dashboard)/[clientId]/account/shopify-connection-card.tsx's header
+// comment for context on why this is now the primary connect path).
 //
 // This is a second, alternative way to connect a client's store — the
 // paste-a-token flow in lib/shopify/client.ts (a merchant-generated
 // custom-app Admin API token) still works and needs no app credentials at
-// all. This flow instead uses a real Partner Dashboard app's Client
-// ID/Secret so any client can click "Connect" and approve access via
-// Shopify's own consent screen, without generating anything themselves.
+// all. This flow instead uses a real Dev Dashboard app's Client ID/Secret
+// so any client can click "Connect" and approve access via Shopify's own
+// consent screen, without generating anything themselves.
+//
+// Credentials (client_id/secret/redirect_uri) are resolved per-organization
+// by lib/shopify/appConfig.ts (dashboard-entered, falling back to env vars)
+// and passed in here explicitly — this module never reads env directly, so
+// it works identically regardless of which source the credentials came
+// from.
 
 import crypto from "node:crypto";
-import { env, isShopifyConfigured } from "@/lib/env";
+import { env } from "@/lib/env";
+import type { ShopifyAppCredentials } from "./appConfig";
 
 const SHOP_DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
 
@@ -23,14 +33,11 @@ export function assertValidShopDomain(input: string): string {
   return withSuffix;
 }
 
-export function buildAuthorizationUrl(shop: string, state: string): string {
-  if (!isShopifyConfigured()) {
-    throw new Error("SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET are not configured.");
-  }
+export function buildAuthorizationUrl(shop: string, state: string, creds: ShopifyAppCredentials): string {
   const params = new URLSearchParams({
-    client_id: env.shopify.clientId,
+    client_id: creds.clientId,
     scope: env.shopify.scopes,
-    redirect_uri: env.shopify.redirectUri,
+    redirect_uri: creds.redirectUri,
     state,
   });
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
@@ -41,7 +48,7 @@ export function buildAuthorizationUrl(shop: string, state: string): string {
  * webhook) with, using the app's client secret — proves the request really
  * came from Shopify and wasn't forged. See Shopify's "Verify a request" docs.
  */
-export function verifyCallbackHmac(searchParams: URLSearchParams): boolean {
+export function verifyCallbackHmac(searchParams: URLSearchParams, clientSecret: string): boolean {
   const params = new URLSearchParams(searchParams);
   const hmac = params.get("hmac");
   if (!hmac) return false;
@@ -53,18 +60,22 @@ export function verifyCallbackHmac(searchParams: URLSearchParams): boolean {
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
 
-  const digest = crypto.createHmac("sha256", env.shopify.clientSecret).update(message).digest("hex");
+  const digest = crypto.createHmac("sha256", clientSecret).update(message).digest("hex");
 
   const a = Buffer.from(digest, "utf8");
   const b = Buffer.from(hmac, "utf8");
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-export async function exchangeCodeForToken(shop: string, code: string): Promise<{ accessToken: string; scope: string }> {
+export async function exchangeCodeForToken(
+  shop: string,
+  code: string,
+  creds: ShopifyAppCredentials
+): Promise<{ accessToken: string; scope: string }> {
   const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: env.shopify.clientId, client_secret: env.shopify.clientSecret, code }),
+    body: JSON.stringify({ client_id: creds.clientId, client_secret: creds.clientSecret, code }),
   });
   if (!res.ok) {
     throw new Error(`Shopify token exchange failed (${res.status}): ${await res.text()}`);
