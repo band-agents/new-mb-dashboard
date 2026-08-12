@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       update: { status: "ERROR", lastError: message },
       create: { clientId: client.id, status: "ERROR", lastError: message },
     });
-    return NextResponse.redirect(new URL(`/${client.id}/account?tiktokError=${redirectError}`, req.url));
+    return NextResponse.redirect(new URL(`/${client.id}/connections?tiktokError=${redirectError}`, req.url));
   }
 
   if (oauthError) return fail(oauthError, "oauth_failed");
@@ -46,8 +46,8 @@ export async function GET(req: Request) {
 
     const res = NextResponse.redirect(
       list.length === 1
-        ? new URL(`/${client.id}/account?tiktokConnected=1`, req.url)
-        : new URL(`/${client.id}/account?tiktokSelectAdvertiser=1`, req.url)
+        ? new URL(`/${client.id}/connections?tiktokConnected=1`, req.url)
+        : new URL(`/${client.id}/connections?tiktokSelectAdvertiser=1`, req.url)
     );
     res.cookies.delete("tiktok_oauth_nonce");
 

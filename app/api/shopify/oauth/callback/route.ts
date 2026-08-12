@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       update: { status: "ERROR", lastError: message },
       create: { clientId: client.id, status: "ERROR", lastError: message },
     });
-    return NextResponse.redirect(new URL(`/${client.id}/account?shopifyError=${redirectError}`, req.url));
+    return NextResponse.redirect(new URL(`/${client.id}/connections?shopifyError=${redirectError}`, req.url));
   }
 
   if (oauthError) return fail(oauthError, "oauth_failed");
@@ -48,7 +48,7 @@ export async function GET(req: Request) {
   try {
     const { accessToken } = await exchangeCodeForToken(shop, code);
     await syncClientFromShopify(client.id, shop, accessToken);
-    const res = NextResponse.redirect(new URL(`/${client.id}/account?shopifyConnected=1`, req.url));
+    const res = NextResponse.redirect(new URL(`/${client.id}/connections?shopifyConnected=1`, req.url));
     res.cookies.delete("shopify_oauth_nonce");
     return res;
   } catch (err) {

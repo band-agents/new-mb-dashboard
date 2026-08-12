@@ -13,14 +13,14 @@ export async function GET(req: Request) {
   await requireClientInScope(clientId);
 
   if (!isShopifyConfigured()) {
-    return NextResponse.redirect(new URL(`/${clientId}/account?shopifyError=not_configured`, req.url));
+    return NextResponse.redirect(new URL(`/${clientId}/connections?shopifyError=not_configured`, req.url));
   }
 
   let shop: string;
   try {
     shop = assertValidShopDomain(shopInput);
   } catch {
-    return NextResponse.redirect(new URL(`/${clientId}/account?shopifyError=invalid_domain`, req.url));
+    return NextResponse.redirect(new URL(`/${clientId}/connections?shopifyError=invalid_domain`, req.url));
   }
 
   // nonce protects against CSRF — verified against the cookie on callback, per Shopify's OAuth guide.

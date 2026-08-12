@@ -1,0 +1,105 @@
+import { requireClientInScope } from "@/lib/data/scope";
+import { prisma } from "@/lib/prisma";
+import { isMetaConfigured, isShopifyConfigured, isTikTokConfigured } from "@/lib/env";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ConnectionCard } from "../account/connection-card";
+import { ShopifyConnectionCard } from "../account/shopify-connection-card";
+import { TikTokConnectionCard } from "../account/tiktok-connection-card";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { t } from "@/lib/i18n/t";
+
+// Dedicated hub for all data-source connections (Meta, TikTok, Shopify),
+// separate from the Account page's business-profile settings. Reuses the
+// exact same connection-card components the Account page used to render —
+// Connect/Reconnect/Disconnect/Refresh logic lives in one place, not
+// duplicated per page. All three OAuth start/callback routes redirect back
+// here (see app/api/{meta,shopify,tiktok}/oauth/{start,callback}).
+export default async function ConnectionsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clientId: string }>;
+  searchParams: Promise<{
+    error?: string;
+    connected?: string;
+    shopifyError?: string;
+    shopifyConnected?: string;
+    tiktokError?: string;
+    tiktokConnected?: string;
+    tiktokSelectAdvertiser?: string;
+  }>;
+}) {
+  const { clientId } = await params;
+  const { client } = await requireClientInScope(clientId);
+  const sp = await searchParams;
+  const locale = await getLocale();
+
+  const adAccounts = await prisma.adAccount.findMany({ where: { clientId } });
+  const shopifyConnection = await prisma.shopifyConnection.findUnique({ where: { clientId } });
+  const tiktokConnection = await prisma.tikTokConnection.findUnique({ where: { clientId } });
+  const pendingAdvertisers: { advertiser_id: string; advertiser_name: string }[] = tiktokConnection?.pendingAdvertisersJson
+    ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
+    : [];
+
+  return (
+    <div className="max-w-3xl">
+      <h1 className="mb-1 text-xl font-semibold">{t(locale, "nav.connections")}</h1>
+      <p className="mb-4 text-sm text-muted-foreground">{t(locale, "connections.subtitle", { client: client.name })}</p>
+
+      <div className="space-y-4">
+        <ConnectionCard
+          clientId={clientId}
+          status={client.metaConnection?.status ?? "NOT_CONNECTED"}
+          isMetaConfigured={isMetaConfigured()}
+          lastSyncedAt={client.metaConnection?.lastSyncedAt?.toISOString() ?? null}
+          lastError={client.metaConnection?.lastError ?? null}
+          error={sp.error}
+        />
+
+        <TikTokConnectionCard
+          clientId={clientId}
+          status={tiktokConnection?.status ?? "NOT_CONNECTED"}
+          isTikTokConfigured={isTikTokConfigured()}
+          advertiserName={tiktokConnection?.advertiserName ?? null}
+          advertiserCurrency={tiktokConnection?.advertiserCurrency ?? null}
+          pendingAdvertisers={pendingAdvertisers}
+          lastSyncedAt={tiktokConnection?.lastSyncedAt?.toISOString() ?? null}
+          lastError={tiktokConnection?.lastError ?? null}
+          error={sp.tiktokError}
+        />
+
+        <ShopifyConnectionCard
+          clientId={clientId}
+          status={shopifyConnection?.status ?? "NOT_CONNECTED"}
+          isShopifyConfigured={isShopifyConfigured()}
+          lastSyncedAt={shopifyConnection?.lastSyncedAt?.toISOString() ?? null}
+          lastError={shopifyConnection?.lastError ?? null}
+          error={sp.shopifyError}
+        />
+
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold">{t(locale, "account.adAccountsTitle")}</h2>
+          {adAccounts.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t(locale, "account.noAdAccounts")}</p>
+          ) : (
+            <ul className="space-y-2">
+              {adAccounts.map((a) => (
+                <li key={a.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium">{a.name}</p>
+                      <Badge variant="outline">{a.adPlatform === "TIKTOK" ? "TikTok" : "Meta"}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{a.externalAccountId} · {a.currency}</p>
+                  </div>
+                  <Badge variant={a.status === "ACTIVE" ? "positive" : "neutral"}>{a.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}

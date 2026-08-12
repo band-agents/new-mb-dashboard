@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   await requireClientInScope(clientId);
 
   if (!isTikTokConfigured()) {
-    return NextResponse.redirect(new URL(`/${clientId}/account?tiktokError=not_configured`, req.url));
+    return NextResponse.redirect(new URL(`/${clientId}/connections?tiktokError=not_configured`, req.url));
   }
 
   // nonce protects against CSRF — verified against the cookie on callback.

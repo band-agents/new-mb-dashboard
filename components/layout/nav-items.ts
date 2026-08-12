@@ -12,6 +12,7 @@ import {
   BellRing,
   Settings,
   Combine,
+  Plug,
 } from "lucide-react";
 
 // labelKey maps to lib/i18n/dictionaries/{en,ar}.ts under "nav".
@@ -28,5 +29,6 @@ export const NAV_ITEMS = [
   { href: "budget", labelKey: "budget", icon: Wallet },
   { href: "reports", labelKey: "reports", icon: FileText },
   { href: "alerts", labelKey: "alerts", icon: BellRing },
+  { href: "connections", labelKey: "connections", icon: Plug },
   { href: "account", labelKey: "account", icon: Settings },
 ] as const;

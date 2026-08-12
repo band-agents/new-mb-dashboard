@@ -46,7 +46,9 @@ export default async function UnifiedPage({
   ]);
 
   const metaMoney = (v: number) => formatCurrency(v, data.meta.currency, tag);
+  const tiktokMoney = (v: number) => formatCurrency(v, data.tiktok.currency, tag);
   const shopMoney = (v: number) => formatCurrency(v, data.shopify.currency, tag);
+  const adMoney = (v: number) => formatCurrency(v, data.unified?.adSpendCurrency ?? data.meta.currency, tag);
   const num = (v: number) => formatNumber(v, tag);
   const statusBadge = STATUS_BADGE[reconciliation.status];
   const StatusIcon = statusBadge.icon;
@@ -57,12 +59,23 @@ export default async function UnifiedPage({
       <p className="mb-4 text-sm text-muted-foreground">{t(locale, "unified.subtitle")}</p>
       <FilterBar showStatusFilter={false} />
 
+      {data.adCurrencyMismatch && (
+        <div className="mb-4 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {t(locale, "unified.adCurrencyMismatchWarning", {
+              metaCurrency: data.meta.currency,
+              tiktokCurrency: data.tiktok.currency,
+            })}
+          </span>
+        </div>
+      )}
+
       {data.currencyMismatch && (
         <div className="mb-4 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
             {t(locale, "unified.currencyMismatchWarning", {
-              metaCurrency: data.meta.currency,
               shopifyCurrency: data.shopify.currency,
             })}
           </span>
@@ -71,13 +84,19 @@ export default async function UnifiedPage({
 
       {data.unified ? (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <Stat label={t(locale, "unified.adSpend")} value={metaMoney(data.unified.adSpend)} />
+          <Stat label={t(locale, "unified.adSpend")} value={adMoney(data.unified.adSpend)} />
+          {data.unified.metaSpend !== null && data.unified.tiktokSpend !== null && (
+            <>
+              <Stat label={t(locale, "unified.metaSpend")} value={metaMoney(data.unified.metaSpend)} />
+              <Stat label={t(locale, "unified.tiktokSpend")} value={tiktokMoney(data.unified.tiktokSpend)} />
+            </>
+          )}
           <Stat label={t(locale, "unified.shopifyRevenue")} value={shopMoney(data.unified.shopifyRevenue)} />
           <Stat label={t(locale, "unified.orders")} value={num(data.unified.orders)} />
           <Stat label={t(locale, "unified.aov")} value={data.unified.averageOrderValue !== null ? shopMoney(data.unified.averageOrderValue) : "—"} />
-          <Stat label={t(locale, "unified.costPerPurchase")} value={data.unified.costPerPurchase !== null ? metaMoney(data.unified.costPerPurchase) : "—"} />
+          <Stat label={t(locale, "unified.costPerPurchase")} value={data.unified.costPerPurchase !== null ? adMoney(data.unified.costPerPurchase) : "—"} />
           <Stat label={t(locale, "unified.roas")} value={data.unified.roas !== null ? `${data.unified.roas.toFixed(2)}x` : "—"} />
-          <Stat label={t(locale, "unified.cac")} value={data.unified.customerAcquisitionCost !== null ? metaMoney(data.unified.customerAcquisitionCost) : "—"} />
+          <Stat label={t(locale, "unified.cac")} value={data.unified.customerAcquisitionCost !== null ? adMoney(data.unified.customerAcquisitionCost) : "—"} />
           <Stat label={t(locale, "unified.conversionRate")} value={data.unified.conversionRate !== null ? formatPercent(data.unified.conversionRate) : "—"} />
           <Stat label={t(locale, "unified.newCustomers")} value={num(data.unified.newCustomers)} />
           <Stat label={t(locale, "unified.returningCustomers")} value={num(data.unified.returningCustomers)} />
@@ -95,7 +114,7 @@ export default async function UnifiedPage({
         </Card>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold">{t(locale, "unified.metaSection")}</h3>
@@ -113,6 +132,27 @@ export default async function UnifiedPage({
               <span className="text-right font-medium">{num(data.meta.purchases)}</span>
               <span className="text-muted-foreground">{t(locale, "kpi.roas")}</span>
               <span className="text-right font-medium">{data.meta.roas > 0 ? `${data.meta.roas.toFixed(2)}x` : "—"}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
+          )}
+        </Card>
+
+        <Card className="p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">{t(locale, "unified.tiktokSection")}</h3>
+            <Badge variant={data.tiktok.availability === "available" ? "positive" : "neutral"}>
+              {data.tiktok.availability === "available" ? t(locale, "common.connected") : data.tiktok.availability === "not_connected" ? t(locale, "common.notConnected") : t(locale, "empty.noData")}
+            </Badge>
+          </div>
+          {data.tiktok.availability === "available" ? (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+              <span className="text-muted-foreground">{t(locale, "kpi.spend")}</span>
+              <span className="text-right font-medium">{tiktokMoney(data.tiktok.spend)}</span>
+              <span className="text-muted-foreground">{t(locale, "kpi.conversions")}</span>
+              <span className="text-right font-medium">{num(data.tiktok.conversions)}</span>
+              <span className="text-muted-foreground">{t(locale, "kpi.roas")}</span>
+              <span className="text-right font-medium">{data.tiktok.roas > 0 ? `${data.tiktok.roas.toFixed(2)}x` : "—"}</span>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">{t(locale, "empty.noData")}</p>
@@ -160,10 +200,14 @@ export default async function UnifiedPage({
           </Badge>
         </div>
         <p className="mb-3 text-xs text-muted-foreground">{t(locale, "unified.dataHealthDesc")}</p>
-        <div className="grid grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
           <div>
             <p className="text-muted-foreground">{t(locale, "unified.metaReportedPurchases")}</p>
             <p className="mt-1 text-base font-semibold tabular-nums">{reconciliation.metaPurchases !== null ? num(reconciliation.metaPurchases) : t(locale, "errors.unavailable")}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{t(locale, "unified.tiktokReportedConversions")}</p>
+            <p className="mt-1 text-base font-semibold tabular-nums">{reconciliation.tiktokConversions !== null ? num(reconciliation.tiktokConversions) : t(locale, "errors.unavailable")}</p>
           </div>
           <div>
             <p className="text-muted-foreground">{t(locale, "unified.shopifyActualOrders")}</p>

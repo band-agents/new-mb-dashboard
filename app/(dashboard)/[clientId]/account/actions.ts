@@ -37,7 +37,7 @@ export async function connectMetaWithTokenAction(clientId: string, accessToken: 
       update: { status: "ERROR", lastError: message },
       create: { clientId: client.id, status: "ERROR", lastError: message },
     });
-    revalidatePath(`/${clientId}/account`);
+    revalidatePath(`/${clientId}/connections`);
     return { ok: false, error: message };
   }
 }
@@ -58,7 +58,7 @@ export async function disconnectMetaAction(clientId: string) {
     update: { status: "NOT_CONNECTED", accessTokenEnc: null, tokenExpiresAt: null, lastError: null },
     create: { clientId: client.id, status: "NOT_CONNECTED" },
   });
-  revalidatePath(`/${clientId}/account`);
+  revalidatePath(`/${clientId}/connections`);
 }
 
 export type ConnectShopifyResult = { ok: true; storeName: string; orderCount: number } | { ok: false; error: string };
@@ -86,7 +86,7 @@ export async function connectShopifyWithTokenAction(clientId: string, shopDomain
       update: { status: "ERROR", lastError: message },
       create: { clientId: client.id, status: "ERROR", lastError: message },
     });
-    revalidatePath(`/${clientId}/account`);
+    revalidatePath(`/${clientId}/connections`);
     return { ok: false, error: message };
   }
 }
@@ -107,7 +107,7 @@ export async function disconnectShopifyAction(clientId: string) {
     update: { status: "NOT_CONNECTED", accessTokenEnc: null, lastError: null },
     create: { clientId: client.id, status: "NOT_CONNECTED" },
   });
-  revalidatePath(`/${clientId}/account`);
+  revalidatePath(`/${clientId}/connections`);
 }
 
 export type ConnectTikTokResult = { ok: true; advertiserName: string; campaignCount: number } | { ok: false; error: string };
@@ -131,7 +131,7 @@ export async function selectTikTokAdvertiserAction(clientId: string, advertiserI
       update: { status: "ERROR", lastError: message },
       create: { clientId: client.id, status: "ERROR", lastError: message },
     });
-    revalidatePath(`/${clientId}/account`);
+    revalidatePath(`/${clientId}/connections`);
     return { ok: false, error: message };
   }
 }
@@ -152,7 +152,7 @@ export async function disconnectTikTokAction(clientId: string) {
     update: { status: "NOT_CONNECTED", accessTokenEnc: null, pendingAdvertisersJson: null, advertiserId: null, lastError: null },
     create: { clientId: client.id, status: "NOT_CONNECTED" },
   });
-  revalidatePath(`/${clientId}/account`);
+  revalidatePath(`/${clientId}/connections`);
 }
 
 export async function updateClientAction(clientId: string, formData: FormData) {

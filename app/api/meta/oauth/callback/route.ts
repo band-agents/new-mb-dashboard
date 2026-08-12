@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       update: { status: "ERROR", lastError: oauthError ?? "No authorization code returned" },
       create: { clientId: client.id, status: "ERROR", lastError: oauthError ?? "No authorization code returned" },
     });
-    return NextResponse.redirect(new URL(`/${client.id}/account?error=oauth_failed`, req.url));
+    return NextResponse.redirect(new URL(`/${client.id}/connections?error=oauth_failed`, req.url));
   }
 
   try {
@@ -42,13 +42,13 @@ export async function GET(req: Request) {
         lastSyncedAt: new Date(),
       },
     });
-    return NextResponse.redirect(new URL(`/${client.id}/account?connected=1`, req.url));
+    return NextResponse.redirect(new URL(`/${client.id}/connections?connected=1`, req.url));
   } catch (err) {
     await prisma.metaConnection.upsert({
       where: { clientId: client.id },
       update: { status: "ERROR", lastError: err instanceof Error ? err.message : "Unknown error" },
       create: { clientId: client.id, status: "ERROR", lastError: err instanceof Error ? err.message : "Unknown error" },
     });
-    return NextResponse.redirect(new URL(`/${client.id}/account?error=token_exchange_failed`, req.url));
+    return NextResponse.redirect(new URL(`/${client.id}/connections?error=token_exchange_failed`, req.url));
   }
 }

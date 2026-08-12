@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   await requireClientInScope(clientId);
 
   if (!isMetaConfigured()) {
-    return NextResponse.redirect(new URL(`/${clientId}/account?error=not_configured`, req.url));
+    return NextResponse.redirect(new URL(`/${clientId}/connections?error=not_configured`, req.url));
   }
 
   // state carries the clientId through the OAuth round trip; in production this
