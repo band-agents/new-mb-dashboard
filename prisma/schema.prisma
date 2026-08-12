@@ -68,6 +68,9 @@ model Client {
   alerts            Alert[]
   shopifyConnection ShopifyConnection?
   shopifySnapshots  ShopifyOrderSnapshot[]
+  shopifyProductSnapshots  ShopifyProductSnapshot[]
+  shopifyCustomers         ShopifyCustomer[]
+  shopifyCheckoutSnapshots ShopifyCheckoutSnapshot[]
 
   @@index([organizationId])
 }
@@ -172,7 +175,12 @@ model AdAccount {
   name          String
   currency      String @default("USD")
   status        String @default("ACTIVE")
-  timezone      String @default("America/New_York")
+  // IANA zone name (e.g. "Africa/Cairo"), read from the platform's own API
+  // at sync time — see lib/meta/sync.ts / lib/tiktok/sync.ts. "UTC" is the
+  // honest fallback when a platform hasn't reported one yet, never a
+  // guessed real-world zone (the previous "America/New_York" default was
+  // wrong for every account that hadn't explicitly set one).
+  timezone      String @default("UTC")
 
   campaigns Campaign[]
   insights  InsightSnapshot[]
@@ -318,6 +326,10 @@ model ShopifyConnection {
   accessTokenEnc String? // AES-256-GCM ciphertext, never sent to the client
   storeName      String?
   storeCurrency  String?
+  // IANA zone name from Shopify's shop.iana_timezone (e.g. "Africa/Cairo"),
+  // captured at sync time — see lib/shopify/sync.ts. Null (not "UTC") when
+  // not yet synced, so "unknown" is never confused with "confirmed UTC".
+  timezone       String?
   lastSyncedAt   DateTime?
   lastError      String?
   createdAt      DateTime  @default(now())
@@ -344,8 +356,78 @@ model ShopifyOrderSnapshot {
   newCustomers     Int   @default(0)
   returningCustomers Int @default(0)
 
+  // Order status breakdown — counted directly from each order's real
+  // financial_status/fulfillment_status/cancelled_at, never inferred.
+  // A single order can count in more than one bucket (e.g. paid AND
+  // fulfilled), so these don't sum to orderCount.
+  paidOrders      Int @default(0) // financial_status: paid | partially_paid
+  fulfilledOrders Int @default(0) // fulfillment_status: fulfilled
+  cancelledOrders Int @default(0) // cancelled_at set (excluded from revenue above)
+  refundedOrders  Int @default(0) // financial_status: refunded | partially_refunded
+
   currency String @default("USD") // the Shopify store's currency (may differ from the Meta ad account's)
   source   String @default("LIVE") // LIVE | DEMO
+
+  @@index([clientId, date])
+}
+
+// Per-product daily sales performance, derived from order line items
+// (Shopify's Orders API — no separate Products API call, so no extra OAuth
+// scope beyond read_orders is needed). See lib/shopify/sync.ts.
+model ShopifyProductSnapshot {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  date DateTime
+
+  externalProductId String // Shopify's numeric product_id, as a string ("0" for line items with no product_id — e.g. deleted products)
+  title             String
+  unitsSold         Int    @default(0)
+  revenue           Float  @default(0) // sum of line-item price * quantity, before discounts
+  ordersCount       Int    @default(0) // distinct orders this product appeared in, that day
+
+  currency String @default("USD")
+  source   String @default("LIVE")
+
+  @@index([clientId, date])
+  @@index([clientId, externalProductId])
+}
+
+// One row per real Shopify customer, upserted at sync time from order data
+// (read_customers scope). Powers total/new/returning/retention/repeat-
+// purchase-rate/CLV — all computed at query time from this table plus the
+// date range, never stored as a single point-in-time number.
+model ShopifyCustomer {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  externalCustomerId String
+  ordersCount        Int       @default(0) // Shopify's own cumulative orders_count for this customer, as of sync time
+  totalSpent         Float     @default(0) // sum of this customer's order subtotal_price across the synced window
+  firstOrderAt       DateTime?
+  lastOrderAt        DateTime?
+  currency           String    @default("USD")
+
+  @@unique([clientId, externalCustomerId])
+  @@index([clientId])
+}
+
+// Daily abandoned-checkout counts from Shopify's Abandoned Checkouts API
+// (requires read_orders scope — confirmed, not a separate scope).
+model ShopifyCheckoutSnapshot {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  date DateTime
+
+  abandonedCount Int   @default(0)
+  abandonedValue Float @default(0) // sum of abandoned checkouts' subtotal, for context — not revenue
+
+  currency String @default("USD")
+  source   String @default("LIVE")
 
   @@index([clientId, date])
 }

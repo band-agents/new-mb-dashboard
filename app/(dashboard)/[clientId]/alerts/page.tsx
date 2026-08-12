@@ -2,6 +2,7 @@ import { requireClientInScope } from "@/lib/data/scope";
 import { generateAlerts } from "@/lib/insights/alerts";
 import { generateOverviewInsights } from "@/lib/insights/engine";
 import { resolvePreset } from "@/lib/data/dateRange";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { AlertCard } from "@/components/alerts/alert-card";
 import { InsightCard } from "@/components/insights/insight-card";
 import { EmptyState } from "@/components/states/empty-error";
@@ -32,7 +33,8 @@ export default async function AlertsPage({ params }: { params: Promise<{ clientI
 
 async function AlertsData({ clientId, locale }: { clientId: string; locale: Awaited<ReturnType<typeof getLocale>> }) {
   const alerts = await generateAlerts(clientId);
-  const { start, end } = resolvePreset("last_30_days");
+  const timezone = await getClientTimezone(clientId, "META"); // this page is Meta-only (gated above)
+  const { start, end } = resolvePreset("last_30_days", timezone);
   const insights = await generateOverviewInsights({ clientId, start, end, compare: "previous_period" });
 
   const critical = alerts.filter((a) => a.severity === "CRITICAL");

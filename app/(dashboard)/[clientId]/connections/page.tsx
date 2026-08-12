@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isMetaConfigured } from "@/lib/env";
 import { getTikTokAppConfigSummary, isTikTokConfiguredForOrg } from "@/lib/tiktok/appConfig";
 import { getShopifyAppConfigSummary, isShopifyConfiguredForOrg } from "@/lib/shopify/appConfig";
+import { getDataHealthSummary } from "@/lib/data/dataHealth.service";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "../account/connection-card";
@@ -11,6 +12,7 @@ import { ShopifyConnectionCard } from "../account/shopify-connection-card";
 import { TikTokAppConfigCard } from "./tiktok-app-config-card";
 import { TikTokConnectionCard } from "./tiktok-connection-card";
 import { ShopifyAppConfigCard } from "./shopify-app-config-card";
+import { DataHealthCard } from "@/components/connections/data-health-card";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
 
@@ -48,11 +50,12 @@ export default async function ConnectionsPage({
     ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
     : [];
 
-  const [tiktokAppSummary, tiktokAppConfigured, shopifyAppSummary, shopifyAppConfigured] = await Promise.all([
+  const [tiktokAppSummary, tiktokAppConfigured, shopifyAppSummary, shopifyAppConfigured, dataHealth] = await Promise.all([
     getTikTokAppConfigSummary(session.user.organizationId),
     isTikTokConfiguredForOrg(session.user.organizationId),
     getShopifyAppConfigSummary(session.user.organizationId),
     isShopifyConfiguredForOrg(session.user.organizationId),
+    getDataHealthSummary(clientId),
   ]);
 
   // Best-effort default the owner can start from when entering the
@@ -72,6 +75,8 @@ export default async function ConnectionsPage({
       <p className="mb-4 text-sm text-muted-foreground">{t(locale, "connections.subtitle", { client: client.name })}</p>
 
       <div className="space-y-4">
+        <DataHealthCard summary={dataHealth} />
+
         <ConnectionCard
           clientId={clientId}
           status={client.metaConnection?.status ?? "NOT_CONNECTED"}

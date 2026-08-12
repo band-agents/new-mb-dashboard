@@ -1,5 +1,6 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { getPerformanceSeries } from "@/lib/data/performance.service";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { PerformanceClient } from "@/components/performance/performance-client";
@@ -19,9 +20,10 @@ export default async function PerformancePage({
   const { clientId } = await params;
   await requireClientInScope(clientId);
   const sp = await searchParams;
-  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days");
   const locale = await getLocale();
   const platform = await getPlatform();
+  const timezone = await getClientTimezone(clientId, platform === "ALL" ? "META" : platform);
+  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days", timezone);
 
   return (
     <div>

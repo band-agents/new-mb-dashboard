@@ -1,3 +1,5 @@
+import { addCalendarDays, addCalendarMonths, calendarDateInTimezone, calendarDateToUtcEnd, calendarDateToUtcStart, isValidTimezone, type CalendarDate } from "./timezone";
+
 export type DateRangePreset =
   | "today"
   | "yesterday"
@@ -6,46 +8,71 @@ export type DateRangePreset =
   | "last_30_days"
   | "last_90_days"
   | "this_month"
+  | "last_month"
   | "custom";
 
 export type ComparePreset = "previous_period" | "previous_month" | "previous_year" | "none";
 
-export function resolvePreset(preset: DateRangePreset, custom?: { start: string; end: string }) {
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+/**
+ * Resolves a date-range preset into real UTC instants, computed in
+ * `timezone` (the connected account/store's own IANA zone — see
+ * lib/data/timezone.ts's getClientTimezone) so "Today" genuinely means
+ * today in that timezone, not the server process's local time. Defaults
+ * `timezone` to "UTC" only as a last resort — every call site should pass
+ * the real resolved timezone.
+ */
+export function resolvePreset(preset: DateRangePreset, timezone: string = "UTC", custom?: { start: string; end: string }) {
+  if (preset === "custom" && custom) {
+    return { start: new Date(custom.start), end: new Date(custom.end) };
+  }
+
+  // Defensive: a bad timezone string here would throw inside
+  // Intl.DateTimeFormat and break the whole page. getClientTimezone
+  // already validates before returning, but this call site doesn't trust
+  // that blindly — an unvalidated caller falls back to UTC instead of
+  // crashing.
+  const tz = isValidTimezone(timezone) ? timezone : "UTC";
+  const today = calendarDateInTimezone(new Date(), tz);
+  let startCal: CalendarDate = today;
+  let endCal: CalendarDate = today;
 
   switch (preset) {
     case "today":
       break;
     case "yesterday":
-      start.setDate(start.getDate() - 1);
-      end.setDate(end.getDate() - 1);
-      end.setHours(23, 59, 59, 999);
+      startCal = addCalendarDays(today, -1);
+      endCal = startCal;
       break;
     case "last_7_days":
-      start.setDate(start.getDate() - 6);
+      startCal = addCalendarDays(today, -6);
       break;
     case "last_14_days":
-      start.setDate(start.getDate() - 13);
+      startCal = addCalendarDays(today, -13);
       break;
     case "last_30_days":
-      start.setDate(start.getDate() - 29);
+      startCal = addCalendarDays(today, -29);
       break;
     case "last_90_days":
-      start.setDate(start.getDate() - 89);
+      startCal = addCalendarDays(today, -89);
       break;
     case "this_month":
-      start.setDate(1);
+      startCal = { ...today, day: 1 };
       break;
+    case "last_month": {
+      const lastMonth = addCalendarMonths(today, -1);
+      startCal = { ...lastMonth, day: 1 };
+      // Last day of last month = day before day-1 of this month.
+      endCal = addCalendarDays({ ...today, day: 1 }, -1);
+      break;
+    }
     case "custom":
-      if (custom) {
-        return { start: new Date(custom.start), end: new Date(custom.end) };
-      }
+      // No custom range supplied — fall back to today, same as an
+      // unrecognized preset would, rather than silently picking a
+      // different range.
       break;
   }
-  return { start, end };
+
+  return { start: calendarDateToUtcStart(startCal, tz), end: calendarDateToUtcEnd(endCal, tz) };
 }
 
 export function comparisonRange(
@@ -85,5 +112,6 @@ export const DATE_PRESET_LABELS: Record<DateRangePreset, string> = {
   last_30_days: "Last 30 days",
   last_90_days: "Last 90 days",
   this_month: "This month",
+  last_month: "Last month",
   custom: "Custom range",
 };

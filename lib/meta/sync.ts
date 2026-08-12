@@ -140,23 +140,23 @@ async function fetchAllFromMeta(accessToken: string): Promise<FetchedAccount> {
   const since = new Date(until.getTime() - SYNC_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const range = { since: isoDate(since), until: isoDate(until), timeIncrement: "1" as const };
 
-  const { data: accountInsights } = await withRetry(() => getInsights(account.id, accessToken, range));
-  const { data: campaigns } = await withRetry(() => getCampaigns(account.id, accessToken));
+  const accountInsights = await withRetry(() => getInsights(account.id, accessToken, range));
+  const campaigns = await withRetry(() => getCampaigns(account.id, accessToken));
 
   const fetchedCampaigns: FetchedCampaign[] = [];
   for (const c of campaigns) {
-    const { data: campInsights } = await withRetry(() => getInsights(c.id, accessToken, range));
-    const { data: adSets } = await withRetry(() => getAdSets(c.id, accessToken));
+    const campInsights = await withRetry(() => getInsights(c.id, accessToken, range));
+    const adSets = await withRetry(() => getAdSets(c.id, accessToken));
 
     const fetchedAdSets: FetchedAdSet[] = [];
     for (const as of adSets) {
-      const { data: adSetInsights } = await withRetry(() => getInsights(as.id, accessToken, range));
-      const { data: ads } = await withRetry(() => getAds(as.id, accessToken));
+      const adSetInsights = await withRetry(() => getInsights(as.id, accessToken, range));
+      const ads = await withRetry(() => getAds(as.id, accessToken));
 
       const fetchedAds: FetchedAd[] = [];
       for (const a of ads) {
         const creative = a.creative?.id ? await withRetry(() => getCreative(a.creative!.id, accessToken)).catch(() => null) : null;
-        const { data: adInsights } = await withRetry(() => getInsights(a.id, accessToken, range));
+        const adInsights = await withRetry(() => getInsights(a.id, accessToken, range));
         fetchedAds.push({ meta: a, creative, insights: adInsights });
       }
       fetchedAdSets.push({ meta: as, insights: adSetInsights, ads: fetchedAds });
@@ -187,6 +187,10 @@ async function writeToDatabase(clientId: string, accessToken: string, fetched: F
           name: account.name,
           currency: account.currency,
           status: account.account_status === 1 ? "ACTIVE" : "PAUSED",
+          // Real IANA zone from Meta's own timezone_name field — "UTC" only
+          // if Meta didn't report one, never a guessed zone (see
+          // lib/data/timezone.ts for why this matters for date ranges).
+          timezone: account.timezone_name || "UTC",
         },
       });
 

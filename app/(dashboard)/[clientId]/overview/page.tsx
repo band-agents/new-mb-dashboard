@@ -1,5 +1,6 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { resolvePreset, type DateRangePreset, type ComparePreset } from "@/lib/data/dateRange";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { getOverviewData } from "@/lib/data/overview.service";
 import { getCombinedAdsOverview } from "@/lib/data/combinedAds.service";
 import { generateOverviewInsights } from "@/lib/insights/engine";
@@ -47,7 +48,8 @@ export default async function OverviewPage({
   const range = (sp.range as DateRangePreset) || "last_30_days";
   const compare = (sp.compare as ComparePreset) || "previous_period";
   const status = sp.status;
-  const { start, end } = resolvePreset(range);
+  const timezone = await getClientTimezone(clientId, platform === "ALL" ? "META" : platform);
+  const { start, end } = resolvePreset(range, timezone);
 
   if (platform === "ALL") {
     const data = await getCombinedAdsOverview({ clientId, start, end, compare });

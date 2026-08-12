@@ -17,6 +17,7 @@ const DATE_PRESET_KEYS: DateRangePreset[] = [
   "last_30_days",
   "last_90_days",
   "this_month",
+  "last_month",
 ];
 const COMPARE_KEYS: ComparePreset[] = ["previous_period", "previous_month", "previous_year", "none"];
 

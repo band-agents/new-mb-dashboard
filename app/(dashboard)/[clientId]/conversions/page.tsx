@@ -1,6 +1,7 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { getClientCurrency } from "@/lib/data/currency";
 import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { getConversionsOverview, getConversionsByCampaign } from "@/lib/data/conversions.service";
 import { getBreakdown } from "@/lib/data/audiences.service";
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -25,9 +26,10 @@ export default async function ConversionsPage({
   const { clientId } = await params;
   await requireClientInScope(clientId);
   const sp = await searchParams;
-  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days");
   const locale = await getLocale();
   const platform = await getPlatform();
+  const timezone = await getClientTimezone(clientId, platform === "ALL" ? "META" : platform);
+  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days", timezone);
 
   return (
     <div>

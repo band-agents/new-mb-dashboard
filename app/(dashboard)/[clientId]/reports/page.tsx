@@ -1,5 +1,6 @@
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { ReportBuilder } from "@/components/reports/report-builder";
 import { PlatformRequiredNotice } from "@/components/platforms/platform-required-notice";
 import { getLocale } from "@/lib/i18n/getLocale";
@@ -26,10 +27,13 @@ export default async function ReportsPage({ params }: { params: Promise<{ client
 }
 
 async function ReportsData({ clientId, clientName, platform }: { clientId: string; clientName: string; platform: "META" | "TIKTOK" }) {
-  const campaigns = await prisma.campaign.findMany({
-    where: { adAccount: { clientId, adPlatform: platform } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-  return <ReportBuilder clientId={clientId} clientName={clientName} campaigns={campaigns} platform={platform} />;
+  const [campaigns, timezone] = await Promise.all([
+    prisma.campaign.findMany({
+      where: { adAccount: { clientId, adPlatform: platform } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    getClientTimezone(clientId, platform),
+  ]);
+  return <ReportBuilder clientId={clientId} clientName={clientName} campaigns={campaigns} platform={platform} timezone={timezone} />;
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ShieldCheck, ShoppingBag, XCircle } from "lucide-react";
 import { requireClientInScope } from "@/lib/data/scope";
 import { resolvePreset, type DateRangePreset } from "@/lib/data/dateRange";
+import { getClientTimezone } from "@/lib/data/timezone";
 import { getUnifiedOverview, getReconciliation, type ReconciliationStatus } from "@/lib/data/unified.service";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { Card } from "@/components/ui/card";
@@ -36,9 +37,14 @@ export default async function UnifiedPage({
   const { clientId } = await params;
   await requireClientInScope(clientId);
   const sp = await searchParams;
-  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days");
   const locale = await getLocale();
   const tag = intlTag(locale);
+  // This page blends Meta + TikTok + Shopify, so there's no single
+  // "correct" timezone — Meta's is used as the reference, consistent with
+  // the Meta-first fallback already used for currency elsewhere on this
+  // page (lib/data/unified.service.ts).
+  const timezone = await getClientTimezone(clientId, "META");
+  const { start, end } = resolvePreset((sp.range as DateRangePreset) || "last_30_days", timezone);
 
   const [data, reconciliation] = await Promise.all([
     getUnifiedOverview({ clientId, start, end }),

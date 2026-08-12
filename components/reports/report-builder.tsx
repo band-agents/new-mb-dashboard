@@ -34,6 +34,7 @@ const DATE_PRESET_KEYS: DateRangePreset[] = [
   "last_30_days",
   "last_90_days",
   "this_month",
+  "last_month",
 ];
 
 export function ReportBuilder({
@@ -41,11 +42,13 @@ export function ReportBuilder({
   clientName,
   campaigns,
   platform,
+  timezone,
 }: {
   clientId: string;
   clientName: string;
   campaigns: { id: string; name: string }[];
   platform: "META" | "TIKTOK";
+  timezone: string;
 }) {
   const [range, setRange] = useState<DateRangePreset>("last_30_days");
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set(campaigns.map((c) => c.id)));
@@ -59,7 +62,7 @@ export function ReportBuilder({
 
   async function generate() {
     setLoading(true);
-    const { start, end } = resolvePreset(range);
+    const { start, end } = resolvePreset(range, timezone);
     try {
       const res = await fetch("/api/reports/generate", {
         method: "POST",

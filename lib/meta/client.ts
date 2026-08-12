@@ -20,9 +20,10 @@ export class MetaApiError extends Error {
   }
 }
 
-async function metaFetch<T>(path: string, accessToken: string, searchParams: Record<string, string> = {}): Promise<T> {
-  const params = new URLSearchParams({ access_token: accessToken, ...searchParams });
-  const res = await fetch(`${BASE_URL}${path}?${params.toString()}`);
+type Paged<T> = { data: T[]; paging?: { cursors?: { after?: string }; next?: string } };
+
+async function metaFetchUrl<T>(url: string): Promise<T> {
+  const res = await fetch(url);
   const json = await res.json();
 
   if (!res.ok || json.error) {
@@ -34,10 +35,37 @@ async function metaFetch<T>(path: string, accessToken: string, searchParams: Rec
   return json as T;
 }
 
-export type MetaAdAccount = { id: string; name: string; currency: string; account_status: number };
+async function metaFetch<T>(path: string, accessToken: string, searchParams: Record<string, string> = {}): Promise<T> {
+  const params = new URLSearchParams({ access_token: accessToken, ...searchParams });
+  return metaFetchUrl<T>(`${BASE_URL}${path}?${params.toString()}`);
+}
+
+/**
+ * Follows Graph API cursor pagination (`paging.next`) until exhausted,
+ * returning every row across every page — a fixed `limit` param alone
+ * would silently truncate any account with more objects than that limit,
+ * which is exactly the "pagination issue" a data-accuracy audit has to
+ * catch. Capped at 50 pages (at limit=200/page, 10,000 objects) as a sane
+ * upper bound; a real account beyond that needs a background job, not a
+ * request-time sync.
+ */
+async function metaFetchPaginated<T>(path: string, accessToken: string, searchParams: Record<string, string>): Promise<T[]> {
+  const results: T[] = [];
+  const first = await metaFetch<Paged<T>>(path, accessToken, searchParams);
+  results.push(...first.data);
+  let next = first.paging?.next;
+  for (let page = 0; page < 49 && next; page++) {
+    const json = await metaFetchUrl<Paged<T>>(next);
+    results.push(...json.data);
+    next = json.paging?.next;
+  }
+  return results;
+}
+
+export type MetaAdAccount = { id: string; name: string; currency: string; account_status: number; timezone_name?: string };
 export function getAdAccounts(accessToken: string) {
   return metaFetch<{ data: MetaAdAccount[] }>("/me/adaccounts", accessToken, {
-    fields: "id,name,currency,account_status",
+    fields: "id,name,currency,account_status,timezone_name",
   });
 }
 
@@ -52,7 +80,7 @@ export type MetaCampaign = {
   stop_time?: string;
 };
 export function getCampaigns(adAccountId: string, accessToken: string) {
-  return metaFetch<{ data: MetaCampaign[] }>(`/${adAccountId}/campaigns`, accessToken, {
+  return metaFetchPaginated<MetaCampaign>(`/${adAccountId}/campaigns`, accessToken, {
     fields: "id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time",
     limit: "200",
   });
@@ -60,7 +88,7 @@ export function getCampaigns(adAccountId: string, accessToken: string) {
 
 export type MetaAdSet = { id: string; name: string; status: string; daily_budget?: string; targeting?: unknown };
 export function getAdSets(campaignId: string, accessToken: string) {
-  return metaFetch<{ data: MetaAdSet[] }>(`/${campaignId}/adsets`, accessToken, {
+  return metaFetchPaginated<MetaAdSet>(`/${campaignId}/adsets`, accessToken, {
     fields: "id,name,status,daily_budget,targeting",
     limit: "200",
   });
@@ -68,7 +96,7 @@ export function getAdSets(campaignId: string, accessToken: string) {
 
 export type MetaAd = { id: string; name: string; status: string; creative?: { id: string } };
 export function getAds(adSetId: string, accessToken: string) {
-  return metaFetch<{ data: MetaAd[] }>(`/${adSetId}/ads`, accessToken, {
+  return metaFetchPaginated<MetaAd>(`/${adSetId}/ads`, accessToken, {
     fields: "id,name,status,creative{id}",
     limit: "200",
   });
@@ -113,7 +141,7 @@ export function getInsights(
   accessToken: string,
   opts: { since: string; until: string; breakdowns?: string[]; timeIncrement?: "1" | "7" | "monthly" }
 ) {
-  return metaFetch<{ data: MetaInsight[] }>(`/${objectId}/insights`, accessToken, {
+  return metaFetchPaginated<MetaInsight>(`/${objectId}/insights`, accessToken, {
     fields: "spend,impressions,reach,frequency,clicks,ctr,cpc,cpm,actions,action_values",
     time_range: JSON.stringify({ since: opts.since, until: opts.until }),
     time_increment: opts.timeIncrement ?? "1",

@@ -13,12 +13,14 @@ import {
   Settings,
   Combine,
   Plug,
+  ShoppingBag,
 } from "lucide-react";
 
 // labelKey maps to lib/i18n/dictionaries/{en,ar}.ts under "nav".
 export const NAV_ITEMS = [
   { href: "overview", labelKey: "overview", icon: LayoutDashboard },
   { href: "unified", labelKey: "unified", icon: Combine },
+  { href: "shopify", labelKey: "shopify", icon: ShoppingBag },
   { href: "campaigns", labelKey: "campaigns", icon: Megaphone },
   { href: "ad-sets", labelKey: "adSets", icon: Layers },
   { href: "ads", labelKey: "ads", icon: ImageIcon },
