@@ -33,10 +33,25 @@ export interface ButtonProps
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, disabled, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     return (
-      <Comp ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+      <Comp
+        ref={ref}
+        disabled={disabled}
+        aria-disabled={disabled || undefined}
+        // asChild commonly wraps an <a> (e.g. "Connect with OAuth" links).
+        // HTML anchors have no `disabled` attribute — the browser ignores
+        // it entirely, so the link stays fully clickable/navigable and the
+        // `disabled:` Tailwind variant never matches (it's a pseudo-class
+        // that only applies to real form controls). Block the click
+        // directly so "disabled" is enforced no matter what Comp renders
+        // as, and apply the dimmed/inert styling via className instead of
+        // relying on the pseudo-class.
+        onClick={disabled ? (e) => e.preventDefault() : onClick}
+        className={cn(buttonVariants({ variant, size }), className, disabled && "pointer-events-none opacity-50")}
+        {...props}
+      />
     );
   }
 );
