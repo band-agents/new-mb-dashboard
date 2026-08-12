@@ -1,11 +1,14 @@
+import { headers } from "next/headers";
 import { requireClientInScope } from "@/lib/data/scope";
 import { prisma } from "@/lib/prisma";
-import { isMetaConfigured, isShopifyConfigured, isTikTokConfigured } from "@/lib/env";
+import { isMetaConfigured, isShopifyConfigured } from "@/lib/env";
+import { getTikTokAppConfigSummary, isTikTokConfiguredForOrg } from "@/lib/tiktok/appConfig";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionCard } from "../account/connection-card";
 import { ShopifyConnectionCard } from "../account/shopify-connection-card";
 import { TikTokConnectionCard } from "../account/tiktok-connection-card";
+import { TikTokAppConfigCard } from "./tiktok-app-config-card";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { t } from "@/lib/i18n/t";
 
@@ -31,7 +34,7 @@ export default async function ConnectionsPage({
   }>;
 }) {
   const { clientId } = await params;
-  const { client } = await requireClientInScope(clientId);
+  const { client, session } = await requireClientInScope(clientId);
   const sp = await searchParams;
   const locale = await getLocale();
 
@@ -41,6 +44,21 @@ export default async function ConnectionsPage({
   const pendingAdvertisers: { advertiser_id: string; advertiser_name: string }[] = tiktokConnection?.pendingAdvertisersJson
     ? JSON.parse(tiktokConnection.pendingAdvertisersJson)
     : [];
+
+  const [tiktokAppSummary, tiktokAppConfigured] = await Promise.all([
+    getTikTokAppConfigSummary(session.user.organizationId),
+    isTikTokConfiguredForOrg(session.user.organizationId),
+  ]);
+
+  // Best-effort default the owner can start from when entering the
+  // Redirect URI for the first time — must match the actual deployment
+  // origin (the OAuth callback route lives at exactly this path), so it's
+  // derived from the real incoming request rather than a possibly-stale
+  // env var.
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
+  const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const suggestedRedirectUri = `${proto}://${host}/api/tiktok/oauth/callback`;
 
   return (
     <div className="max-w-3xl">
@@ -57,10 +75,17 @@ export default async function ConnectionsPage({
           error={sp.error}
         />
 
+        <TikTokAppConfigCard
+          clientId={clientId}
+          isOwner={session.user.role === "OWNER"}
+          summary={tiktokAppSummary}
+          suggestedRedirectUri={suggestedRedirectUri}
+        />
+
         <TikTokConnectionCard
           clientId={clientId}
           status={tiktokConnection?.status ?? "NOT_CONNECTED"}
-          isTikTokConfigured={isTikTokConfigured()}
+          isTikTokConfigured={tiktokAppConfigured}
           advertiserName={tiktokConnection?.advertiserName ?? null}
           advertiserCurrency={tiktokConnection?.advertiserCurrency ?? null}
           pendingAdvertisers={pendingAdvertisers}

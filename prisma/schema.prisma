@@ -21,8 +21,9 @@ model Organization {
   name      String
   createdAt DateTime @default(now())
 
-  users   User[]
-  clients Client[]
+  users           User[]
+  clients         Client[]
+  tiktokAppConfig TikTokAppConfig?
 }
 
 model User {
@@ -109,6 +110,31 @@ model TikTokConnection {
   lastError         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
+
+// Per-organization TikTok Developer App credentials, entered from the
+// dashboard (Connections page) as an alternative to server env vars
+// (TIKTOK_CLIENT_ID / TIKTOK_CLIENT_SECRET / TIKTOK_REDIRECT_URI — see
+// lib/tiktok/appConfig.ts, which prefers this row when present and falls
+// back to env vars otherwise). One TikTok app per agency (Organization),
+// shared across every Client the agency manages — mirrors how the env-var
+// config was always global to the whole deployment, just scoped down to
+// the tenant boundary instead of the whole server. clientId (App ID /
+// Client Key) is not secret — TikTok itself puts it in the browser's
+// address bar during the OAuth redirect — so it's stored in plaintext;
+// clientSecretEnc is AES-256-GCM ciphertext and is never sent to the
+// client, same convention as every accessTokenEnc column in this schema.
+model TikTokAppConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  clientSecretEnc String
+  redirectUri     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AdAccount {

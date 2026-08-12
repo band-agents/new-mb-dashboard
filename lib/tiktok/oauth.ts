@@ -7,22 +7,25 @@
 // redirects back with `auth_code` + `state`; the code is exchanged
 // server-side (with the app secret) for a long-lived access token that
 // covers every advertiser account the user grants.
+//
+// Credentials (app_id/secret/redirect_uri) are resolved per-organization
+// by lib/tiktok/appConfig.ts (dashboard-entered, falling back to env vars)
+// and passed in here explicitly — this module never reads env directly,
+// so it works identically regardless of which source the credentials
+// came from.
 
-import { env, isTikTokConfigured } from "@/lib/env";
+import type { TikTokAppCredentials } from "./appConfig";
 import { exchangeCodeForToken as apiExchangeCodeForToken } from "./client";
 
-export function buildAuthorizationUrl(state: string): string {
-  if (!isTikTokConfigured()) {
-    throw new Error("TIKTOK_CLIENT_ID / TIKTOK_CLIENT_SECRET are not configured.");
-  }
+export function buildAuthorizationUrl(state: string, creds: TikTokAppCredentials): string {
   const params = new URLSearchParams({
-    app_id: env.tiktok.clientId,
+    app_id: creds.clientId,
     state,
-    redirect_uri: env.tiktok.redirectUri,
+    redirect_uri: creds.redirectUri,
   });
   return `https://business-api.tiktok.com/portal/auth?${params.toString()}`;
 }
 
-export async function exchangeCodeForToken(authCode: string) {
-  return apiExchangeCodeForToken(env.tiktok.clientId, env.tiktok.clientSecret, authCode);
+export function exchangeCodeForToken(authCode: string, creds: TikTokAppCredentials) {
+  return apiExchangeCodeForToken(creds.clientId, creds.clientSecret, authCode);
 }

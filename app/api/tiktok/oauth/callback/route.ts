@@ -3,8 +3,8 @@ import { requireClientInScope } from "@/lib/data/scope";
 import { exchangeCodeForToken } from "@/lib/tiktok/oauth";
 import { getAuthorizedAdvertisers, TikTokApiError } from "@/lib/tiktok/client";
 import { syncClientFromTikTok } from "@/lib/tiktok/sync";
+import { getTikTokAppCredentials } from "@/lib/tiktok/appConfig";
 import { encryptSecret } from "@/lib/security/crypto";
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const [clientId, nonce] = (state ?? "").split(".");
   if (!clientId) return NextResponse.json({ error: "Missing state" }, { status: 400 });
 
-  const { client } = await requireClientInScope(clientId);
+  const { client, session } = await requireClientInScope(clientId);
 
   async function fail(message: string, redirectError: string) {
     await prisma.tikTokConnection.upsert({
@@ -36,9 +36,18 @@ export async function GET(req: Request) {
     return fail("This authorization request expired or could not be verified. Please try connecting again.", "oauth_failed");
   }
 
+  const creds = await getTikTokAppCredentials(session.user.organizationId);
+  if (!creds) {
+    // Defensive only — /api/tiktok/oauth/start already refuses to build an
+    // authorization URL without credentials, so TikTok shouldn't be able to
+    // reach this callback in that state. Covers the edge case where the
+    // config was removed between the redirect out and the redirect back.
+    return fail("TikTok credentials were removed before this authorization could complete. Please reconnect.", "not_configured");
+  }
+
   try {
-    const { access_token } = await exchangeCodeForToken(authCode);
-    const { list } = await getAuthorizedAdvertisers(env.tiktok.clientId, env.tiktok.clientSecret, access_token);
+    const { access_token } = await exchangeCodeForToken(authCode, creds);
+    const { list } = await getAuthorizedAdvertisers(creds.clientId, creds.clientSecret, access_token);
 
     if (list.length === 0) {
       return fail("This TikTok account has no advertiser accounts to connect. Ask an admin for Ads access on at least one account.", "no_advertisers");
